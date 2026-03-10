@@ -309,18 +309,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             ),
                             const SizedBox(height: 14),
                             _FieldRow(
-                              label: 'Bathrooms',
-                              child: _SelectField(
-                                value: _bathrooms,
-                                hint: '4',
-                                items: _numbers,
-                                border: border,
-                                hintColor: hint,
-                                onChanged: (v) => setState(() => _bathrooms = v),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
                               label: 'Bedrooms',
                               child: _SelectField(
                                 value: _bedrooms,
@@ -329,6 +317,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                 border: border,
                                 hintColor: hint,
                                 onChanged: (v) => setState(() => _bedrooms = v),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _FieldRow(
+                              label: 'Bathrooms',
+                              child: _SelectField(
+                                value: _bathrooms,
+                                hint: '4',
+                                items: _numbers,
+                                border: border,
+                                hintColor: hint,
+                                onChanged: (v) => setState(() => _bathrooms = v),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -779,4 +779,3 @@ class _AttachmentField extends StatelessWidget {
     );
   }
 }
-

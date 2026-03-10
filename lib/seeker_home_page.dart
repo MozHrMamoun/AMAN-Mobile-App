@@ -7,10 +7,12 @@ import 'edit_information_page.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'features/properties/state/seeker_home_controller.dart';
 import 'message_page.dart';
+import 'notification_page.dart';
 import 'property_detail_page.dart';
 import 'recommendation_page.dart';
 import 'search_property_page.dart';
 import 'landing_page.dart';
+import 'features/notifications/state/notification_controller.dart';
 
 class SeekerHomePage extends StatefulWidget {
   const SeekerHomePage({super.key});
@@ -22,6 +24,8 @@ class SeekerHomePage extends StatefulWidget {
 class _SeekerHomePageState extends State<SeekerHomePage> {
   final SeekerHomeController _controller = SeekerHomeController();
   final ChatListController _chatController = ChatListController();
+  final NotificationController _notificationController =
+      NotificationController();
 
   String? _selectedCity;
   String? _selectedType;
@@ -30,6 +34,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 
   List<SeekerHomePropertyItem> _allProperties = const [];
   List<SeekerHomePropertyItem> _filteredProperties = const [];
+  int _unreadNotifications = 0;
 
   List<String> get _typeOptions {
     final set = _allProperties.map((e) => e.propertyType).toSet().toList();
@@ -47,6 +52,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   void initState() {
     super.initState();
     _loadProperties();
+    _loadNotificationCount();
   }
 
   Future<void> _loadProperties() async {
@@ -81,6 +87,30 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
           _selectedType == null || property.propertyType == _selectedType;
       return cityMatch && typeMatch;
     }).toList();
+  }
+
+  Future<void> _loadNotificationCount() async {
+    if (AppSession.isGuestMode) return;
+    final count = await _notificationController.loadUnreadCount();
+    if (!mounted) return;
+    setState(() {
+      _unreadNotifications = count;
+    });
+  }
+
+  Future<void> _openNotifications() async {
+    if (AppSession.isGuestMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to use this feature.')),
+      );
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationPage()),
+    );
+    if (!mounted) return;
+    _loadNotificationCount();
   }
 
   Future<void> _openOwnerChat(String ownerUserId) async {
@@ -194,18 +224,9 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
                           children: [
-                            if (AppSession.isGuestMode)
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: IconButton(
-                                  onPressed: _goToLandingPage,
-                                  icon: const Icon(
-                                    Icons.arrow_back_ios_new_rounded,
-                                    color: Color(0xFF1C2A4A),
-                                  ),
-                                ),
-                              ),
                             _TopIconsRow(
+                              onNotificationTap: _openNotifications,
+                              notificationCount: _unreadNotifications,
                               onProfileTap: () {
                                 if (AppSession.isGuestMode) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -340,16 +361,59 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 }
 
 class _TopIconsRow extends StatelessWidget {
-  const _TopIconsRow({required this.onProfileTap});
+  const _TopIconsRow({
+    required this.onProfileTap,
+    required this.onNotificationTap,
+    required this.notificationCount,
+  });
 
   final VoidCallback onProfileTap;
+  final VoidCallback onNotificationTap;
+  final int notificationCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(Icons.notifications, color: Color(0xFF1C2A4A), size: 30),
+        IconButton(
+          onPressed: onNotificationTap,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.notifications,
+                color: Color(0xFF1C2A4A),
+                size: 30,
+              ),
+              if (notificationCount > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB2455D),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      notificationCount > 99
+                          ? '99+'
+                          : notificationCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         IconButton(
           onPressed: onProfileTap,
           icon: const Icon(Icons.account_circle, color: Color(0xFF1C2A4A), size: 34),
