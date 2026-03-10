@@ -1,0 +1,97 @@
+class CityData {
+  const CityData._();
+
+  static const List<String> states = [
+    'Khartoum',
+    'Al Jazirah',
+    'Northern',
+    'River Nile',
+    'Red Sea',
+    'Kassala',
+    'Gedaref',
+    'Sennar',
+    'White Nile',
+    'Blue Nile',
+    'North Kordofan',
+    'South Kordofan',
+    'West Kordofan',
+    'North Darfur',
+    'South Darfur',
+    'West Darfur',
+    'Central Darfur',
+    'East Darfur',
+  ];
+
+  static const Map<String, List<String>> citiesByState = {
+    'Khartoum': [
+      'Khartoum',
+      'Omdurman',
+      'Bahri',
+      'Ombada',
+      'Karary',
+      'Sharg En Nile',
+      'Jabal Awliya',
+    ],
+    'Al Jazirah': [
+      'Wad Madani',
+      'Al Hasaheisa',
+      'Al Kamlin',
+      'Al Managil',
+      'East Al Gazera',
+      'South Al Gazera',
+      'Om Al Qura',
+      'Al-Qurashi 24',
+    ],
+    'Northern': [
+      'Dongola',
+      'Merowe',
+      'Halfa',
+      'Al Goled',
+      'Al Burgaig',
+      'Al Dabbah',
+      'Delgo',
+    ],
+    'River Nile': [
+      'Atbara',
+      'Shendi',
+      'Ad-Damir',
+      'Berber',
+      'Al Matammah',
+      'Al Buhaira',
+      'Abu Hamad',
+    ],
+    'Red Sea': [
+      'Port Sudan',
+      'Sinkat',
+      'Tokar',
+      'Halaib',
+      'Suakin',
+      'Jubayt',
+      'Hayaa',
+    ],
+    'Kassala': [
+      'Kassala',
+      'Khashm El Girba',
+      'Al Quresha',
+      'Ar Rahad',
+      'Al Gash',
+      'Al Humr',
+      'Telkuk',
+    ],
+    'Gedaref': ['Al Qadarif', 'Doka', 'Al Faw'],
+    'Sennar': ['Sennar', 'Sinja', 'Ad Dinder'],
+    'White Nile': ['Kosti', 'Rabak', 'Ed Dueim'],
+    'Blue Nile': ['Ad-Damazin', 'Ar Roseires', 'Baw'],
+    'North Kordofan': ['El Obeid', 'Bara', 'Umm Rawaba'],
+    'South Kordofan': ['Kadugli', 'Dilling', 'Talodi'],
+    'West Kordofan': ['An Nuhud', 'Al Fula', 'Babanusa'],
+    'North Darfur': ['Al Fasher', 'Kutum', 'Mellit'],
+    'South Darfur': ['Nyala', 'Kass', 'Tulus'],
+    'West Darfur': ['El Geneina', 'Habila', 'Foro Baranga'],
+    'Central Darfur': ['Zalingei', 'Azum', 'Wadi Salih'],
+    'East Darfur': ['Ed Daein', 'Adila', 'Abu Karinka'],
+  };
+
+  static final List<String> allCities =
+      citiesByState.values.expand((cities) => cities).toList(growable: false);
+}
