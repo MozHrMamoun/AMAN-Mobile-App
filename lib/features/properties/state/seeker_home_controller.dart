@@ -75,9 +75,15 @@ class SeekerHomeController {
 
   final PropertyRepository _repository;
 
-  Future<SeekerHomeResult> loadProperties() async {
+  Future<SeekerHomeResult> loadProperties({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     try {
-      final rows = await _repository.fetchSeekerHomeProperties();
+      final rows = await _repository.fetchSeekerHomeProperties(
+        limit: limit,
+        offset: offset,
+      );
       final items = rows.map(SeekerHomePropertyItem.fromMap).toList();
       return SeekerHomeResult.success(items);
     } on PostgrestException catch (e) {

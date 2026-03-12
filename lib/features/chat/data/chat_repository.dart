@@ -27,7 +27,7 @@ class ChatRepository {
     final rows = await _client
         .from('chats')
         .select(
-          'chat_id, owner_user_id, seeker_user_id, last_message_text, last_message_at, created_at',
+          'chat_id, owner_user_id, seeker_user_id, property_id, last_message_text, last_message_at, created_at',
         )
         .or('owner_user_id.eq.$userId,seeker_user_id.eq.$userId')
         .order('last_message_at', ascending: false);
@@ -58,12 +58,14 @@ class ChatRepository {
   Future<Map<String, dynamic>?> findChat({
     required String ownerUserId,
     required String seekerUserId,
+    required int propertyId,
   }) async {
     final row = await _client
         .from('chats')
-        .select('chat_id, owner_user_id, seeker_user_id')
+        .select('chat_id, owner_user_id, seeker_user_id, property_id')
         .eq('owner_user_id', ownerUserId)
         .eq('seeker_user_id', seekerUserId)
+        .eq('property_id', propertyId)
         .maybeSingle();
 
     if (row == null) return null;
@@ -73,15 +75,17 @@ class ChatRepository {
   Future<Map<String, dynamic>> createChat({
     required String ownerUserId,
     required String seekerUserId,
+    required int propertyId,
   }) async {
     final row = await _client
         .from('chats')
         .insert({
           'owner_user_id': ownerUserId,
           'seeker_user_id': seekerUserId,
+          'property_id': propertyId,
           'created_at': DateTime.now().toIso8601String(),
         })
-        .select('chat_id, owner_user_id, seeker_user_id')
+        .select('chat_id, owner_user_id, seeker_user_id, property_id')
         .single();
 
     return Map<String, dynamic>.from(row);
@@ -90,20 +94,31 @@ class ChatRepository {
   Future<Map<String, dynamic>?> fetchChatById(int chatId) async {
     final row = await _client
         .from('chats')
-        .select('chat_id, owner_user_id, seeker_user_id')
+        .select('chat_id, owner_user_id, seeker_user_id, property_id')
         .eq('chat_id', chatId)
         .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
 
-  Future<List<Map<String, dynamic>>> fetchMessagesByChatId(int chatId) async {
-    final rows = await _client
+  // No property_id updates; chats are per property.
+
+  Future<List<Map<String, dynamic>>> fetchMessagesByChatId(
+    int chatId, {
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    dynamic query = _client
         .from('chat_messages')
         .select('message_id, chat_id, sender_user_id, message_text, created_at, read_at')
         .eq('chat_id', chatId)
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: false);
 
+    if (limit > 0) {
+      query = query.range(offset, offset + limit - 1);
+    }
+
+    final rows = await query;
     return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();

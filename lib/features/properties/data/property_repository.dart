@@ -52,110 +52,21 @@ class PropertyRepository {
         .toList();
   }
 
-  Future<List<Map<String, dynamic>>> fetchSeekerHomeProperties() async {
-    final rows = await _client
-        .from('properties')
-        .select(
-          'property_id, owner_id, property_type, property_city, bedrooms, bathrooms, status, created_at',
-        )
-        .eq('status', 'active')
-        .order('created_at', ascending: false);
+  Future<List<Map<String, dynamic>>> fetchSeekerHomeProperties({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final rows = await _client.rpc(
+      'fetch_seeker_home_properties',
+      params: {
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
 
-    final properties = (rows as List)
+    return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
-
-    if (properties.isEmpty) return const [];
-
-    final propertyIds = properties
-        .map((row) => row['property_id'])
-        .whereType<int>()
-        .toList();
-    final ownerIds = properties
-        .map((row) => row['owner_id']?.toString())
-        .whereType<String>()
-        .toSet()
-        .toList();
-
-    final firstImageByProperty = <int, String>{};
-    if (propertyIds.isNotEmpty) {
-      final imageRows = await _client
-          .from('property_images')
-          .select('property_id, image_url, image_id')
-          .inFilter('property_id', propertyIds)
-          .order('image_id', ascending: true);
-
-      for (final rowRaw in (imageRows as List)) {
-        final row = Map<String, dynamic>.from(rowRaw as Map);
-        final propertyIdRaw = row['property_id'];
-        final propertyId = propertyIdRaw is int
-            ? propertyIdRaw
-            : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-        if (propertyId == null) continue;
-        final imageUrl = row['image_url'] as String?;
-        if (imageUrl == null || imageUrl.isEmpty) continue;
-
-        firstImageByProperty.putIfAbsent(propertyId, () => imageUrl);
-      }
-    }
-
-    final ownerNameById = <String, String>{};
-    final ownerAvgRatingById = <String, double>{};
-    if (ownerIds.isNotEmpty) {
-      final ownerRows = await _client
-          .from('user')
-          .select('user_id, full_name')
-          .inFilter('user_id', ownerIds);
-
-      for (final rowRaw in (ownerRows as List)) {
-        final row = Map<String, dynamic>.from(rowRaw as Map);
-        final userId = row['user_id']?.toString();
-        if (userId == null || userId.isEmpty) continue;
-        ownerNameById[userId] = (row['full_name'] as String?) ?? 'Unknown';
-      }
-
-      final ratingRows = await _client
-          .from('ratings')
-          .select('target_user_id, rating_value')
-          .inFilter('target_user_id', ownerIds);
-
-      final sumByOwner = <String, double>{};
-      final countByOwner = <String, int>{};
-      for (final rowRaw in (ratingRows as List)) {
-        final row = Map<String, dynamic>.from(rowRaw as Map);
-        final ownerId = row['target_user_id']?.toString();
-        if (ownerId == null || ownerId.isEmpty) continue;
-
-        final valueRaw = row['rating_value'];
-        final value = valueRaw is num ? valueRaw.toDouble() : double.tryParse(valueRaw?.toString() ?? '');
-        if (value == null) continue;
-
-        sumByOwner[ownerId] = (sumByOwner[ownerId] ?? 0) + value;
-        countByOwner[ownerId] = (countByOwner[ownerId] ?? 0) + 1;
-      }
-
-      for (final ownerId in sumByOwner.keys) {
-        final count = countByOwner[ownerId] ?? 0;
-        if (count > 0) {
-          ownerAvgRatingById[ownerId] = sumByOwner[ownerId]! / count;
-        }
-      }
-    }
-
-    return properties.map((property) {
-      final propertyIdRaw = property['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-      final ownerId = property['owner_id']?.toString();
-
-      return {
-        ...property,
-        'owner_name': ownerId == null ? 'Unknown' : (ownerNameById[ownerId] ?? 'Unknown'),
-        'owner_rating': ownerId == null ? null : ownerAvgRatingById[ownerId],
-        'image_url': propertyId == null ? null : firstImageByProperty[propertyId],
-      };
-    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> searchProperties({
@@ -169,108 +80,30 @@ class PropertyRepository {
     bool bathroomsAtLeast = false,
     double? minPrice,
     double? maxPrice,
+    int limit = 20,
+    int offset = 0,
   }) async {
-    dynamic query = _client.from('properties').select(
-          'property_id, owner_id, property_type, property_city, bedrooms, bathrooms, status, created_at, price',
-        );
+    final rows = await _client.rpc(
+      'search_properties_rpc',
+      params: {
+        'p_transaction_type': transactionType,
+        'p_property_type': propertyType,
+        'p_property_state': propertyState,
+        'p_property_city': propertyCity,
+        'p_bedrooms': bedrooms,
+        'p_bedrooms_at_least': bedroomsAtLeast,
+        'p_bathrooms': bathrooms,
+        'p_bathrooms_at_least': bathroomsAtLeast,
+        'p_min_price': minPrice,
+        'p_max_price': maxPrice,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
 
-    query = query.eq('status', 'active');
-
-    if (transactionType != null && transactionType.isNotEmpty) {
-      query = query.eq('transaction_type', transactionType);
-    }
-    if (propertyType != null && propertyType.isNotEmpty) {
-      query = query.eq('property_type', propertyType);
-    }
-    if (propertyState != null && propertyState.isNotEmpty) {
-      query = query.eq('property_state', propertyState);
-    }
-    if (propertyCity != null && propertyCity.isNotEmpty) {
-      query = query.eq('property_city', propertyCity);
-    }
-    if (bedrooms != null) {
-      query = bedroomsAtLeast
-          ? query.gte('bedrooms', bedrooms)
-          : query.eq('bedrooms', bedrooms);
-    }
-    if (bathrooms != null) {
-      query = bathroomsAtLeast
-          ? query.gte('bathrooms', bathrooms)
-          : query.eq('bathrooms', bathrooms);
-    }
-    if (minPrice != null) {
-      query = query.gte('price', minPrice);
-    }
-    if (maxPrice != null) {
-      query = query.lte('price', maxPrice);
-    }
-
-    final rows = await query.order('created_at', ascending: false);
-    final properties = (rows as List)
+    return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
-
-    if (properties.isEmpty) return const [];
-
-    final propertyIds = properties
-        .map((row) => row['property_id'])
-        .whereType<int>()
-        .toList();
-    final ownerIds = properties
-        .map((row) => row['owner_id']?.toString())
-        .whereType<String>()
-        .toSet()
-        .toList();
-
-    final firstImageByProperty = <int, String>{};
-    if (propertyIds.isNotEmpty) {
-      final imageRows = await _client
-          .from('property_images')
-          .select('property_id, image_url, image_id')
-          .inFilter('property_id', propertyIds)
-          .order('image_id', ascending: true);
-
-      for (final rowRaw in (imageRows as List)) {
-        final row = Map<String, dynamic>.from(rowRaw as Map);
-        final propertyIdRaw = row['property_id'];
-        final propertyId = propertyIdRaw is int
-            ? propertyIdRaw
-            : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-        if (propertyId == null) continue;
-        final imageUrl = row['image_url'] as String?;
-        if (imageUrl == null || imageUrl.isEmpty) continue;
-        firstImageByProperty.putIfAbsent(propertyId, () => imageUrl);
-      }
-    }
-
-    final ownerNameById = <String, String>{};
-    if (ownerIds.isNotEmpty) {
-      final ownerRows = await _client
-          .from('user')
-          .select('user_id, full_name')
-          .inFilter('user_id', ownerIds);
-
-      for (final rowRaw in (ownerRows as List)) {
-        final row = Map<String, dynamic>.from(rowRaw as Map);
-        final userId = row['user_id']?.toString();
-        if (userId == null || userId.isEmpty) continue;
-        ownerNameById[userId] = (row['full_name'] as String?) ?? 'Unknown';
-      }
-    }
-
-    return properties.map((property) {
-      final propertyIdRaw = property['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-      final ownerId = property['owner_id']?.toString();
-
-      return {
-        ...property,
-        'owner_name': ownerId == null ? 'Unknown' : (ownerNameById[ownerId] ?? 'Unknown'),
-        'image_url': propertyId == null ? null : firstImageByProperty[propertyId],
-      };
-    }).toList();
   }
 
   Future<Map<String, dynamic>?> fetchPropertyDetailById(int propertyId) async {
@@ -474,6 +307,18 @@ class PropertyRepository {
         })
         .eq('property_id', propertyId)
         .eq('owner_id', ownerId);
+  }
+
+  Future<void> markPropertyInactive({
+    required int propertyId,
+  }) async {
+    await _client
+        .from('properties')
+        .update({
+          'status': 'inactive',
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('property_id', propertyId);
   }
 
   Future<String> uploadPropertyImage({

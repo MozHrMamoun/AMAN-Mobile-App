@@ -10,7 +10,7 @@ class LandingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primary = Color(0xFF1C2A4A);
-    const page = Color(0xFFE9EAEC);
+    const page = Color(0xFFFFFFFF);
 
     return Scaffold(
       backgroundColor: primary,
@@ -29,27 +29,15 @@ class LandingPage extends StatelessWidget {
                 child: Stack(
                   children: [
                     Positioned(
-                      top: 22,
-                      right: 22,
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.translate_rounded,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
-                    ),
-                    Positioned(
                       left: 0,
                       right: 0,
-                      bottom: -6,
+                      bottom: -10,
                       child: ClipRRect(
                         borderRadius: const BorderRadius.only(
                           topRight: Radius.circular(42),
                         ),
                         child: Container(
-                          height: 290,
+                          height: 400,
                           color: page,
                           padding: const EdgeInsets.fromLTRB(14, 18, 14, 0),
                           child: Image.asset(
@@ -67,7 +55,7 @@ class LandingPage extends StatelessWidget {
             Container(
               width: double.infinity,
               color: page,
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 26),
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -80,7 +68,7 @@ class LandingPage extends StatelessWidget {
                       height: 1.18,
                     ),
                   ),
-                  const SizedBox(height: 34),
+                  const SizedBox(height: 40),
                   _ActionButton(
                     text: 'Start Your  Journey',
                     filled: true,

@@ -95,6 +95,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
     final result = await _chatController.openOrCreateChatWithOwner(
       ownerUserId: ownerUserId,
+      propertyId: _item!.propertyId,
     );
     if (!mounted) return;
 
@@ -111,6 +112,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
         builder: (_) => ChatDetailPage(
           chatId: result.chatId!,
           peerName: result.peerName ?? _item!.ownerName,
+          propertyId: _item!.propertyId,
         ),
       ),
     );

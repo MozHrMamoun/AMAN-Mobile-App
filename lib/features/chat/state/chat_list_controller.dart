@@ -9,6 +9,7 @@ class ChatThreadItem {
     required this.peerName,
     required this.lastMessageText,
     required this.lastMessageAt,
+    required this.propertyId,
   });
 
   final int chatId;
@@ -16,6 +17,7 @@ class ChatThreadItem {
   final String peerName;
   final String lastMessageText;
   final DateTime? lastMessageAt;
+  final int? propertyId;
 }
 
 class ChatListResult {
@@ -132,6 +134,10 @@ class ChatListController {
         final seekerId = row['seeker_user_id']?.toString();
         final peerId = ownerId == currentUserId ? seekerId : ownerId;
         final safePeerId = (peerId == null || peerId.isEmpty) ? '-' : peerId;
+        final propertyIdRaw = row['property_id'];
+        final propertyId = propertyIdRaw is int
+            ? propertyIdRaw
+            : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
 
         return ChatThreadItem(
           chatId: parseInt(row['chat_id']),
@@ -142,6 +148,7 @@ class ChatListController {
                   ? (row['last_message_text'] as String)
                   : 'No messages yet.',
           lastMessageAt: parseDate(row['last_message_at']),
+          propertyId: propertyId,
         );
       }).toList();
 
@@ -161,6 +168,7 @@ class ChatListController {
 
   Future<ChatOpenResult> openOrCreateChatWithOwner({
     required String ownerUserId,
+    required int propertyId,
   }) async {
     try {
       final profile = await _repository.fetchCurrentUserProfile();
@@ -176,6 +184,9 @@ class ChatListController {
       if (ownerUserId.trim().isEmpty) {
         return ChatOpenResult.error('Owner id is missing.');
       }
+      if (propertyId <= 0) {
+        return ChatOpenResult.error('Property id is missing.');
+      }
 
       late final String ownerId;
       late final String seekerId;
@@ -190,11 +201,13 @@ class ChatListController {
       final existing = await _repository.findChat(
         ownerUserId: ownerId,
         seekerUserId: seekerId,
+        propertyId: propertyId,
       );
       final chatRow = existing ??
           await _repository.createChat(
             ownerUserId: ownerId,
             seekerUserId: seekerId,
+            propertyId: propertyId,
           );
 
       final chatIdRaw = chatRow['chat_id'];

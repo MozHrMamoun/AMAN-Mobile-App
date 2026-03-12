@@ -223,6 +223,7 @@ class _MessagePageState extends State<MessagePage> {
                                                 builder: (_) => ChatDetailPage(
                                                   chatId: thread.chatId,
                                                   peerName: thread.peerName,
+                                                  propertyId: thread.propertyId,
                                                 ),
                                               ),
                                             );

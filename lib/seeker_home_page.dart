@@ -11,7 +11,6 @@ import 'notification_page.dart';
 import 'property_detail_page.dart';
 import 'recommendation_page.dart';
 import 'search_property_page.dart';
-import 'landing_page.dart';
 import 'features/notifications/state/notification_controller.dart';
 
 class SeekerHomePage extends StatefulWidget {
@@ -26,11 +25,16 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   final ChatListController _chatController = ChatListController();
   final NotificationController _notificationController =
       NotificationController();
+  final ScrollController _scrollController = ScrollController();
 
   String? _selectedCity;
   String? _selectedType;
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 20;
 
   List<SeekerHomePropertyItem> _allProperties = const [];
   List<SeekerHomePropertyItem> _filteredProperties = const [];
@@ -51,31 +55,68 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   @override
   void initState() {
     super.initState();
-    _loadProperties();
+    _loadProperties(reset: true);
     _loadNotificationCount();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _loadProperties() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    final result = await _controller.loadProperties();
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadProperties(reset: false);
+    }
+  }
+
+  Future<void> _loadProperties({required bool reset}) async {
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _page = 0;
+        _hasMore = true;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
+    final result = await _controller.loadProperties(
+      limit: _pageSize,
+      offset: _page * _pageSize,
+    );
     if (!mounted) return;
 
     if (!result.success) {
       setState(() {
         _isLoading = false;
+        _isLoadingMore = false;
         _errorMessage = result.errorMessage ?? 'Failed to load properties.';
       });
       return;
     }
 
-    _allProperties = result.items;
+    if (reset) {
+      _allProperties = result.items;
+    } else {
+      _allProperties = [..._allProperties, ...result.items];
+    }
+    _hasMore = result.items.length == _pageSize;
+    if (_hasMore) {
+      _page += 1;
+    }
     _applyFilters();
     setState(() {
       _isLoading = false;
+      _isLoadingMore = false;
     });
   }
 
@@ -113,7 +154,10 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
     _loadNotificationCount();
   }
 
-  Future<void> _openOwnerChat(String ownerUserId) async {
+  Future<void> _openOwnerChat(
+    String ownerUserId, {
+    required int propertyId,
+  }) async {
     if (AppSession.isGuestMode) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please login to use this feature.')),
@@ -123,6 +167,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 
     final result = await _chatController.openOrCreateChatWithOwner(
       ownerUserId: ownerUserId,
+      propertyId: propertyId,
     );
     if (!mounted) return;
 
@@ -141,16 +186,9 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
         builder: (_) => ChatDetailPage(
           chatId: result.chatId!,
           peerName: result.peerName ?? 'Owner',
+          propertyId: propertyId,
         ),
       ),
-    );
-  }
-
-  void _goToLandingPage() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LandingPage()),
-      (_) => false,
     );
   }
 
@@ -220,8 +258,9 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                         ),
                       )
                     : RefreshIndicator(
-                        onRefresh: _loadProperties,
+                        onRefresh: () => _loadProperties(reset: true),
                         child: ListView(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
                           children: [
                             _TopIconsRow(
@@ -296,8 +335,10 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                                   padding: const EdgeInsets.only(bottom: 24),
                                   child: _PropertyCard(
                                     property: property,
-                                    onContactTap: () =>
-                                        _openOwnerChat(property.ownerUserId),
+                                    onContactTap: () => _openOwnerChat(
+                                      property.ownerUserId,
+                                      propertyId: property.propertyId,
+                                    ),
                                     onTap: () {
                                       Navigator.push(
                                         context,
@@ -310,6 +351,11 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                                     },
                                   ),
                                 ),
+                              ),
+                            if (_isLoadingMore)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Center(child: CircularProgressIndicator()),
                               ),
                           ],
                         ),
@@ -539,6 +585,7 @@ class _PropertyCard extends StatelessWidget {
                       : Image.network(
                           property.imageUrl!,
                           fit: BoxFit.cover,
+                          cacheWidth: 360,
                           errorBuilder: (_, __, ___) => Container(
                             color: const Color(0xFFE7E7E8),
                             alignment: Alignment.center,

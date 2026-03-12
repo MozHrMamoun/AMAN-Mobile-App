@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
+import 'features/deals/state/deal_controller.dart';
 import 'features/chat/state/chat_detail_controller.dart';
+import 'features/ratings/state/rating_controller.dart';
 
 class ChatDetailPage extends StatefulWidget {
   const ChatDetailPage({
     super.key,
     required this.chatId,
     required this.peerName,
+    this.propertyId,
   });
 
   final int chatId;
   final String peerName;
+  final int? propertyId;
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -18,6 +22,8 @@ class ChatDetailPage extends StatefulWidget {
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final ChatDetailController _controller = ChatDetailController();
+  final DealController _dealController = DealController();
+  final RatingController _ratingController = RatingController();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -26,24 +32,48 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   String? _errorMessage;
   List<ChatMessageItem> _messages = const [];
   String _peerName = 'User';
+  String? _seekerUserId;
+  String? _ownerUserId;
+  int? _propertyId;
+  int? _pendingDealId;
+  bool _isDealPending = false;
+  bool _isDealCompleted = false;
+  bool _dealStatusLoaded = false;
+  String _currentRole = 'seeker';
+  int? _dealId;
+  bool _hasRated = false;
+  bool _isDealStatusLoading = false;
+  bool _isLoadingMoreMessages = false;
+  bool _hasMoreMessages = true;
+  int _messagePage = 0;
+  static const int _messagePageSize = 30;
 
   @override
   void initState() {
     super.initState();
     _peerName = widget.peerName;
     _load();
+    _scrollController.addListener(_onScroll);
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isDealStatusLoading = true;
+      _dealStatusLoaded = false;
+      _messagePage = 0;
+      _hasMoreMessages = true;
     });
 
-    final result = await _controller.loadChat(
+    final chatFuture = _controller.loadChat(
       chatId: widget.chatId,
       peerNameHint: _peerName,
+      limit: _messagePageSize,
+      offset: _messagePage * _messagePageSize,
     );
+    final result = await chatFuture;
     if (!mounted) return;
 
     setState(() {
@@ -51,23 +81,150 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       _errorMessage = result.success ? null : result.errorMessage;
       _messages = result.messages;
       _peerName = result.peerName ?? _peerName;
+      _seekerUserId = result.seekerUserId;
+      _ownerUserId = result.ownerUserId;
+      _propertyId = widget.propertyId ?? result.propertyId;
     });
+
+    if (result.success &&
+        result.seekerUserId != null &&
+        result.ownerUserId != null &&
+        _propertyId != null) {
+      await _refreshDealStatus(
+        seekerId: result.seekerUserId!,
+        ownerId: result.ownerUserId!,
+        propertyId: _propertyId!,
+      );
+    } else {
+      if (mounted) {
+        setState(() {
+          _isDealStatusLoading = false;
+          _dealStatusLoaded = true;
+        });
+      }
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
   }
 
+  Future<void> _refreshDealStatus({
+    required String seekerId,
+    required String ownerId,
+    required int propertyId,
+  }) async {
+    final status = await _dealController.loadStatus(
+      seekerId: seekerId,
+      ownerId: ownerId,
+      propertyId: propertyId,
+    );
+    if (!mounted) return;
+
+    if (!status.success) return;
+    setState(() {
+      _pendingDealId = status.pendingDealId;
+      _isDealCompleted = status.isCompleted;
+      _isDealPending = status.isPending && !status.isCompleted;
+      _currentRole = status.currentRole ?? _currentRole;
+      _dealId = status.dealId;
+      _dealStatusLoaded = true;
+      _isDealStatusLoading = false;
+    });
+
+    if (status.isCompleted && status.dealId != null) {
+      await _loadRatingStatus(status.dealId!);
+    }
+  }
+
+  Future<void> _loadRatingStatus(int dealId) async {
+    final result = await _ratingController.checkHasRated(dealId: dealId);
+    if (!mounted || !result.success) return;
+    setState(() {
+      _hasRated = result.hasRated;
+    });
+  }
+
+  Future<void> _showRatingDialog({
+    required int dealId,
+    required String targetUserId,
+  }) async {
+    double rating = 5.0;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rate this user'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Rating: ${rating.toStringAsFixed(1)}'),
+              Slider(
+                value: rating,
+                min: 1,
+                max: 5,
+                divisions: 40,
+                label: rating.toStringAsFixed(1),
+                onChanged: (value) {
+                  rating = value;
+                  (context as Element).markNeedsBuild();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != true) return;
+
+    final submit = await _ratingController.submitRating(
+      dealId: dealId,
+      targetUserId: targetUserId,
+      ratingValue: double.parse(rating.toStringAsFixed(1)),
+    );
+    if (!mounted) return;
+
+    if (!submit.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(submit.errorMessage ?? 'Failed to rate.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _hasRated = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thank you for your rating.')),
+    );
+  }
+
   Future<void> _loadSilently() async {
+    if (!mounted) return;
     final result = await _controller.loadChat(
       chatId: widget.chatId,
       peerNameHint: _peerName,
+      limit: _messagePageSize,
+      offset: 0,
     );
     if (!mounted || !result.success) return;
 
     setState(() {
       _messages = result.messages;
       _peerName = result.peerName ?? _peerName;
+      _messagePage = 0;
+      _hasMoreMessages = result.messages.length == _messagePageSize;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,6 +235,55 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
     _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels <= 120 &&
+        !_isLoadingMoreMessages &&
+        _hasMoreMessages) {
+      _loadMoreMessages();
+    }
+  }
+
+  Future<void> _loadMoreMessages() async {
+    if (_isLoadingMoreMessages || !_hasMoreMessages) return;
+    setState(() {
+      _isLoadingMoreMessages = true;
+    });
+
+    final beforeMax = _scrollController.position.maxScrollExtent;
+    final beforeOffset = _scrollController.offset;
+
+    final nextPage = _messagePage + 1;
+    final result = await _controller.loadChat(
+      chatId: widget.chatId,
+      peerNameHint: _peerName,
+      limit: _messagePageSize,
+      offset: nextPage * _messagePageSize,
+    );
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _isLoadingMoreMessages = false;
+      });
+      return;
+    }
+
+    final older = result.messages;
+    setState(() {
+      _messages = [...older, ..._messages];
+      _messagePage = nextPage;
+      _hasMoreMessages = older.length == _messagePageSize;
+      _isLoadingMoreMessages = false;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final afterMax = _scrollController.position.maxScrollExtent;
+      final delta = afterMax - beforeMax;
+      _scrollController.jumpTo(beforeOffset + delta);
+    });
   }
 
   Future<void> _send() async {
@@ -128,6 +334,177 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     });
 
     await _loadSilently();
+  }
+
+  Widget _buildDealActions() {
+    if (_isDealStatusLoading) {
+      return const SizedBox(
+        height: 28,
+        width: 120,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'Checking deal...',
+            style: TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    }
+    if (!_dealStatusLoaded) {
+      return const SizedBox.shrink();
+    }
+    final seekerId = _seekerUserId;
+    final ownerId = _ownerUserId;
+    final propertyId = _propertyId;
+
+    if (seekerId == null || ownerId == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (propertyId == null) {
+      return const Text(
+        'Deal can be completed only from a property.',
+        style: TextStyle(
+          color: Color(0xFF8E949F),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    if (_isDealCompleted) {
+      if (_dealId != null && !_hasRated) {
+        final targetUserId = _currentRole == 'owner' ? seekerId : ownerId;
+        return ElevatedButton(
+          onPressed: () => _showRatingDialog(
+            dealId: _dealId!,
+            targetUserId: targetUserId,
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1C2A4A),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Rate User'),
+        );
+      }
+
+      return const Text(
+        'Deal completed.',
+        style: TextStyle(
+          color: Color(0xFF2F7D32),
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    if (_isDealPending) {
+      if (_currentRole == 'owner') {
+        return ElevatedButton(
+          onPressed: () async {
+            final dealId = _pendingDealId;
+            if (dealId == null) return;
+            final propertyId = _propertyId;
+            if (propertyId == null) return;
+            final result = await _dealController.confirmDeal(
+              dealId: dealId,
+              propertyId: propertyId,
+            );
+            if (!mounted) return;
+            if (!result.success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    result.errorMessage ?? 'Failed to confirm deal.',
+                  ),
+                ),
+              );
+              return;
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Deal confirmed.')),
+            );
+            if (!mounted) return;
+            setState(() {
+              _isDealPending = false;
+              _isDealCompleted = true;
+              _dealId = dealId;
+            });
+            await _loadRatingStatus(dealId);
+            await _loadSilently();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1C2A4A),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Confirm Deal Done'),
+        );
+      }
+
+      return const Text(
+        'Waiting for owner confirmation.',
+        style: TextStyle(
+          color: Color(0xFF8E949F),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    if (_currentRole == 'seeker') {
+      return ElevatedButton(
+        onPressed: () async {
+          final result = await _dealController.requestDeal(
+            seekerId: seekerId,
+            ownerId: ownerId,
+            propertyId: propertyId,
+          );
+          if (!mounted) return;
+
+          if (!result.success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content:
+                    Text(result.errorMessage ?? 'Failed to request deal.'),
+              ),
+            );
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Deal request sent to owner.')),
+          );
+          setState(() {
+            _isDealPending = true;
+            _pendingDealId = result.dealId;
+          });
+          await _loadSilently();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1C2A4A),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: const Text('Mark Deal Done'),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   @override
@@ -181,10 +558,17 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: _isLoading
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _buildDealActions(),
+                        ),
+                      ),
+                      Expanded(
+                        child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : _errorMessage != null
                               ? Center(
@@ -211,9 +595,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                       16,
                                       10,
                                     ),
-                                    itemCount: _messages.length,
+                                    itemCount:
+                                        _messages.length + (_isLoadingMoreMessages ? 1 : 0),
                                     itemBuilder: (context, index) {
-                                      final message = _messages[index];
+                                      if (_isLoadingMoreMessages && index == 0) {
+                                        return const Padding(
+                                          padding: EdgeInsets.only(bottom: 8),
+                                          child: Center(
+                                            child: SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      final message = _messages[
+                                          index - (_isLoadingMoreMessages ? 1 : 0)];
                                       return Align(
                                         alignment: message.isMine
                                             ? Alignment.centerRight

@@ -20,29 +20,80 @@ class SearchResultPage extends StatefulWidget {
 
 class _SearchResultPageState extends State<SearchResultPage> {
   final SearchPropertiesController _controller = SearchPropertiesController();
+  final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
   String? _errorMessage;
   List<SearchPropertyItem> _items = const [];
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _page = 0;
+  static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(reset: true);
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    final result = await _controller.search(widget.criteria);
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _load(reset: false);
+    }
+  }
+
+  Future<void> _load({required bool reset}) async {
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        _page = 0;
+        _hasMore = true;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
+    final result = await _controller.search(
+      widget.criteria,
+      limit: _pageSize,
+      offset: _page * _pageSize,
+    );
     if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _errorMessage = result.errorMessage;
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = false;
-      _errorMessage = result.success ? null : result.errorMessage;
-      _items = result.items;
+      _isLoadingMore = false;
+      _errorMessage = null;
+      if (reset) {
+        _items = result.items;
+      } else {
+        _items = [..._items, ...result.items];
+      }
+      _hasMore = result.items.length == _pageSize;
+      if (_hasMore) {
+        _page += 1;
+      }
     });
   }
 
@@ -160,8 +211,9 @@ class _SearchResultPageState extends State<SearchResultPage> {
                                         ),
                                       )
                                     : RefreshIndicator(
-                                        onRefresh: _load,
+                                        onRefresh: () => _load(reset: true),
                                         child: GridView.builder(
+                                          controller: _scrollController,
                                           padding: const EdgeInsets.fromLTRB(
                                             16,
                                             0,
@@ -175,8 +227,13 @@ class _SearchResultPageState extends State<SearchResultPage> {
                                                 mainAxisSpacing: 16,
                                                 mainAxisExtent: 290,
                                               ),
-                                          itemCount: _items.length,
+                                          itemCount: _items.length + (_isLoadingMore ? 1 : 0),
                                           itemBuilder: (context, index) {
+                                            if (index >= _items.length) {
+                                              return const Center(
+                                                child: CircularProgressIndicator(),
+                                              );
+                                            }
                                             final item = _items[index];
                                             return _ResultCard(
                                               item: item,
@@ -360,6 +417,7 @@ class _ResultCard extends StatelessWidget {
                       : Image.network(
                           item.imageUrl!,
                           fit: BoxFit.cover,
+                          cacheWidth: 320,
                           errorBuilder: (_, __, ___) => Container(
                             color: const Color(0xFFE7E7E8),
                             alignment: Alignment.center,

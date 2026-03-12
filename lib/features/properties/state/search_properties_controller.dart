@@ -95,7 +95,11 @@ class SearchPropertiesController {
 
   final PropertyRepository _repository;
 
-  Future<SearchPropertiesResult> search(SearchCriteria criteria) async {
+  Future<SearchPropertiesResult> search(
+    SearchCriteria criteria, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
     try {
       final rows = await _repository.searchProperties(
         transactionType: criteria.transactionType,
@@ -108,6 +112,8 @@ class SearchPropertiesController {
         bathroomsAtLeast: criteria.bathroomsAtLeast,
         minPrice: criteria.minPrice,
         maxPrice: criteria.maxPrice,
+        limit: limit,
+        offset: offset,
       );
       final items = rows.map(SearchPropertyItem.fromMap).toList();
       return SearchPropertiesResult.success(items);

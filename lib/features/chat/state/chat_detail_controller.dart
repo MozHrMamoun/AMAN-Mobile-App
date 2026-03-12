@@ -25,6 +25,9 @@ class ChatDetailResult {
     this.messages = const [],
     this.currentUserId,
     this.peerName,
+    this.seekerUserId,
+    this.ownerUserId,
+    this.propertyId,
   });
 
   final bool success;
@@ -32,17 +35,26 @@ class ChatDetailResult {
   final List<ChatMessageItem> messages;
   final String? currentUserId;
   final String? peerName;
+  final String? seekerUserId;
+  final String? ownerUserId;
+  final int? propertyId;
 
   factory ChatDetailResult.success({
     required List<ChatMessageItem> messages,
     required String currentUserId,
     required String peerName,
+    required String? seekerUserId,
+    required String? ownerUserId,
+    required int? propertyId,
   }) {
     return ChatDetailResult._(
       success: true,
       messages: messages,
       currentUserId: currentUserId,
       peerName: peerName,
+      seekerUserId: seekerUserId,
+      ownerUserId: ownerUserId,
+      propertyId: propertyId,
     );
   }
 
@@ -75,6 +87,8 @@ class ChatDetailController {
   Future<ChatDetailResult> loadChat({
     required int chatId,
     String? peerNameHint,
+    int limit = 30,
+    int offset = 0,
   }) async {
     try {
       final currentUserId = _repository.currentUserId;
@@ -87,6 +101,10 @@ class ChatDetailController {
 
       final ownerId = chat['owner_user_id']?.toString();
       final seekerId = chat['seeker_user_id']?.toString();
+      final propertyIdRaw = chat['property_id'];
+      final propertyId = propertyIdRaw is int
+          ? propertyIdRaw
+          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
       final isParticipant = ownerId == currentUserId || seekerId == currentUserId;
       if (!isParticipant) {
         return ChatDetailResult.error('You are not allowed to access this chat.');
@@ -101,7 +119,11 @@ class ChatDetailController {
               ? 'User'
               : (peerNames[peerId] ?? 'User'));
 
-      final rows = await _repository.fetchMessagesByChatId(chatId);
+      final rows = await _repository.fetchMessagesByChatId(
+        chatId,
+        limit: limit,
+        offset: offset,
+      );
       final messages = rows.map((row) {
         final idRaw = row['message_id'];
         final messageId = idRaw is int
@@ -121,7 +143,7 @@ class ChatDetailController {
           createdAt: createdAt,
           isMine: senderId == currentUserId,
         );
-      }).toList();
+      }).toList().reversed.toList();
 
       await _repository.markOtherMessagesRead(
         chatId: chatId,
@@ -132,6 +154,9 @@ class ChatDetailController {
         messages: messages,
         currentUserId: currentUserId,
         peerName: peerName,
+        seekerUserId: seekerId,
+        ownerUserId: ownerId,
+        propertyId: propertyId,
       );
     } on PostgrestException catch (e) {
       return ChatDetailResult.error(
