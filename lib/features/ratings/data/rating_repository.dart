@@ -38,4 +38,17 @@ class RatingRepository {
       'rated_at': DateTime.now().toIso8601String(),
     });
   }
+
+  Future<List<double>> fetchRatingsForUser({
+    required String targetUserId,
+  }) async {
+    final rows = await _client
+        .from('ratings')
+        .select('rating_value')
+        .eq('target_user_id', targetUserId);
+    return rows
+        .map((row) => (row['rating_value'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
+  }
 }

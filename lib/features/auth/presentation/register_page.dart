@@ -102,7 +102,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+              padding: const EdgeInsets.fromLTRB(12, 24, 12, 24),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -139,7 +139,7 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 24),
+                  padding: const EdgeInsets.fromLTRB(18, 32, 18, 64),
                   child: Column(
                     children: [
                       Container(

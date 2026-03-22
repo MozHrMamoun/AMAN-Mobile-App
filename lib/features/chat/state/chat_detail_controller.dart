@@ -131,10 +131,16 @@ class ChatDetailController {
             : (idRaw is num ? idRaw.toInt() : 0);
         final senderId = row['sender_user_id']?.toString() ?? '';
         final text = (row['message_text'] as String?) ?? '';
-        final createdRaw = row['created_at']?.toString();
-        final createdAt = createdRaw == null || createdRaw.isEmpty
-            ? null
-            : DateTime.tryParse(createdRaw);
+      final createdRaw = row['created_at']?.toString();
+      final createdAt = createdRaw == null || createdRaw.isEmpty
+          ? null
+          : DateTime.tryParse(
+              createdRaw.endsWith('Z') ||
+                      createdRaw.contains('+') ||
+                      createdRaw.contains('-')
+                  ? createdRaw
+                  : '${createdRaw}Z',
+            );
 
         return ChatMessageItem(
           messageId: messageId,

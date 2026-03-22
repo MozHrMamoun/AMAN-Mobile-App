@@ -174,7 +174,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(18, 80, 18, 24),
+                        padding: const EdgeInsets.fromLTRB(18, 32, 18, 64),
                         child: Column(
                           children: [
                             Container(

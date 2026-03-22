@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'core/app_session.dart';
 import 'edit_information_page.dart';
 import 'features/properties/state/search_properties_controller.dart';
+import 'features/notifications/state/notification_controller.dart';
 import 'message_page.dart';
+import 'notification_page.dart';
 import 'property_detail_page.dart';
-import 'recommendation_page.dart';
+import 'more_service_page.dart';
 import 'search_property_page.dart';
 import 'seeker_home_page.dart';
 
@@ -20,6 +22,8 @@ class SearchResultPage extends StatefulWidget {
 
 class _SearchResultPageState extends State<SearchResultPage> {
   final SearchPropertiesController _controller = SearchPropertiesController();
+  final NotificationController _notificationController =
+      NotificationController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
   String? _errorMessage;
@@ -27,12 +31,14 @@ class _SearchResultPageState extends State<SearchResultPage> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   int _page = 0;
+  int _unreadNotifications = 0;
   static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
     _load(reset: true);
+    _loadNotificationCount();
     _scrollController.addListener(_onScroll);
   }
 
@@ -103,6 +109,28 @@ class _SearchResultPageState extends State<SearchResultPage> {
     );
   }
 
+  Future<void> _loadNotificationCount() async {
+    if (AppSession.isGuestMode) return;
+    final count = await _notificationController.loadUnreadCount();
+    if (!mounted) return;
+    setState(() {
+      _unreadNotifications = count;
+    });
+  }
+
+  Future<void> _openNotifications() async {
+    if (AppSession.isGuestMode) {
+      _openLoginRequired();
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationPage()),
+    );
+    if (!mounted) return;
+    _loadNotificationCount();
+  }
+
   @override
   Widget build(BuildContext context) {
     const primary = Color(0xFF1C2A4A);
@@ -136,7 +164,7 @@ class _SearchResultPageState extends State<SearchResultPage> {
         case 3:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const RecommendationPage()),
+            MaterialPageRoute(builder: (_) => const MoreServicePage()),
           );
           break;
       }
@@ -161,6 +189,8 @@ class _SearchResultPageState extends State<SearchResultPage> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
                         child: _TopIconsRow(
+                          onNotificationTap: _openNotifications,
+                          notificationCount: _unreadNotifications,
                           onProfileTap: () {
                             if (AppSession.isGuestMode) {
                               _openLoginRequired();
@@ -176,11 +206,7 @@ class _SearchResultPageState extends State<SearchResultPage> {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: _FilterRow(),
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 46),
                       Expanded(
                         child: _isLoading
                             ? const Center(child: CircularProgressIndicator())
@@ -304,16 +330,59 @@ class _SearchResultPageState extends State<SearchResultPage> {
 }
 
 class _TopIconsRow extends StatelessWidget {
-  const _TopIconsRow({required this.onProfileTap});
+  const _TopIconsRow({
+    required this.onProfileTap,
+    required this.onNotificationTap,
+    required this.notificationCount,
+  });
 
   final VoidCallback onProfileTap;
+  final VoidCallback onNotificationTap;
+  final int notificationCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(Icons.notifications, color: Color(0xFF1C2A4A), size: 30),
+        IconButton(
+          onPressed: onNotificationTap,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.notifications,
+                color: Color(0xFF1C2A4A),
+                size: 30,
+              ),
+              if (notificationCount > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB2455D),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      notificationCount > 99
+                          ? '99+'
+                          : notificationCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         IconButton(
           onPressed: onProfileTap,
           icon: const Icon(Icons.account_circle, color: Color(0xFF1C2A4A), size: 34),
@@ -330,8 +399,6 @@ class _FilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: const [
-        Icon(Icons.tune_rounded, color: Color(0xFF1C2A4A), size: 24),
-        SizedBox(width: 18),
         _ChipItem(label: 'City'),
         Spacer(),
         _ChipItem(label: 'Price'),
@@ -369,6 +436,7 @@ class _ChipItem extends StatelessWidget {
     );
   }
 }
+
 
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.item, required this.onTap});
@@ -442,7 +510,8 @@ class _ResultCard extends StatelessWidget {
               Text(
                 'Bedrooms: ${item.bedrooms ?? '-'}\n'
                 'Bathrooms: ${item.bathrooms ?? '-'}\n'
-                'Owner: ${item.ownerName}',
+                'Owner: ${item.ownerName}\n'
+                'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
                 style: const TextStyle(
                   color: Color(0xFF8E949F),
                   fontSize: 14,

@@ -30,6 +30,34 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
   }
 
   Future<void> _deleteProperty(int propertyId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete property?'),
+          content: const Text(
+            'This will permanently delete the property and its images. Continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2A4A),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
     setState(() {
       _isDeleting = true;
     });

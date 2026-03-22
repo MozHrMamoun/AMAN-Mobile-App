@@ -6,7 +6,7 @@ import 'core/app_session.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'follow_up_property_page.dart';
 import 'owner_home_page.dart';
-import 'recommendation_page.dart';
+import 'more_service_page.dart';
 import 'search_property_page.dart';
 import 'seeker_home_page.dart';
 
@@ -22,8 +22,18 @@ class _MessagePageState extends State<MessagePage> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  String _currentRole = 'seeker';
+  String? _currentRole;
   List<ChatThreadItem> _threads = const [];
+
+  String _formatTime(DateTime? value) {
+    if (value == null) return '';
+    final local = value.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final h = hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    final suffix = local.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $suffix';
+  }
 
   @override
   void initState() {
@@ -118,7 +128,7 @@ class _MessagePageState extends State<MessagePage> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const RecommendationPage()),
+          MaterialPageRoute(builder: (_) => const MoreServicePage()),
         );
         break;
     }
@@ -128,6 +138,15 @@ class _MessagePageState extends State<MessagePage> {
   Widget build(BuildContext context) {
     const primary = Color(0xFF1C2A4A);
     const page = Color(0xFFE9EAEC);
+
+    if (_currentRole == null) {
+      return Scaffold(
+        backgroundColor: primary,
+        body: const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: primary,
@@ -226,7 +245,7 @@ class _MessagePageState extends State<MessagePage> {
                                                   propertyId: thread.propertyId,
                                                 ),
                                               ),
-                                            );
+                                            ).then((_) => _load());
                                           },
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
@@ -254,32 +273,76 @@ class _MessagePageState extends State<MessagePage> {
                                                         CrossAxisAlignment
                                                             .start,
                                                     children: [
-                                                      Text(
-                                                        thread.peerName,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: const TextStyle(
-                                                          color:
-                                                              Color(0xFF1F2430),
-                                                          fontSize: 18 / 1.2,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                        ),
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              thread.peerName,
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow
+                                                                  .ellipsis,
+                                                              style: const TextStyle(
+                                                                color:
+                                                                    Color(0xFF1F2430),
+                                                                fontSize: 18 / 1.2,
+                                                                fontWeight:
+                                                                    FontWeight.w700,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          Text(
+                                                            _formatTime(thread.lastMessageAt),
+                                                            style: const TextStyle(
+                                                              color: Color(0xFF8E949F),
+                                                              fontSize: 12,
+                                                              fontWeight: FontWeight.w600,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                       const SizedBox(height: 2),
-                                                      Text(
-                                                        thread.lastMessageText,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: const TextStyle(
-                                                          color:
-                                                              Color(0xFF4A5160),
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              thread.lastMessageText,
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow
+                                                                  .ellipsis,
+                                                              style: const TextStyle(
+                                                                color:
+                                                                    Color(0xFF4A5160),
+                                                                fontSize: 15,
+                                                                fontWeight:
+                                                                    FontWeight.w500,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (thread.unreadCount > 0) ...[
+                                                            const SizedBox(width: 8),
+                                                            Container(
+                                                              padding: const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                              decoration: BoxDecoration(
+                                                                color: const Color(0xFF1C2A4A),
+                                                                borderRadius: BorderRadius.circular(10),
+                                                              ),
+                                                              child: Text(
+                                                                thread.unreadCount > 99
+                                                                    ? '99+'
+                                                                    : thread.unreadCount.toString(),
+                                                                style: const TextStyle(
+                                                                  color: Colors.white,
+                                                                  fontSize: 11,
+                                                                  fontWeight: FontWeight.w700,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ],
                                                       ),
                                                     ],
                                                   ),

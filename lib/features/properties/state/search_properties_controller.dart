@@ -35,6 +35,7 @@ class SearchPropertyItem {
     required this.bedrooms,
     required this.bathrooms,
     required this.ownerName,
+    required this.ownerRating,
     required this.imageUrl,
     required this.city,
   });
@@ -44,6 +45,7 @@ class SearchPropertyItem {
   final int? bedrooms;
   final int? bathrooms;
   final String ownerName;
+  final double? ownerRating;
   final String? imageUrl;
   final String city;
 
@@ -63,6 +65,7 @@ class SearchPropertyItem {
       bedrooms: parseInt(row['bedrooms']),
       bathrooms: parseInt(row['bathrooms']),
       ownerName: (row['owner_name'] as String?) ?? 'Unknown',
+      ownerRating: (row['owner_rating'] as num?)?.toDouble(),
       imageUrl: row['image_url'] as String?,
       city: (row['property_city'] as String?) ?? '-',
     );

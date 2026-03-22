@@ -39,7 +39,7 @@ class LandingPage extends StatelessWidget {
                         child: Container(
                           height: 400,
                           color: page,
-                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 0),
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 56),
                           child: Image.asset(
                             'assets/background.jpg',
                             fit: BoxFit.contain,
@@ -55,7 +55,7 @@ class LandingPage extends StatelessWidget {
             Container(
               width: double.infinity,
               color: page,
-              padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 64),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

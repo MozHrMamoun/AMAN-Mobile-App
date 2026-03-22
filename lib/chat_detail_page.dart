@@ -46,7 +46,22 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   bool _isLoadingMoreMessages = false;
   bool _hasMoreMessages = true;
   int _messagePage = 0;
+  String? _currentUserId;
+  String? _peerUserId;
+  double? _peerAverageRating;
+  int _peerRatingCount = 0;
+  bool _isRatingLoading = false;
   static const int _messagePageSize = 30;
+
+  String _formatMessageTime(DateTime? value) {
+    if (value == null) return '';
+    final local = value.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final h = hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    final suffix = local.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $suffix';
+  }
 
   @override
   void initState() {
@@ -84,7 +99,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       _seekerUserId = result.seekerUserId;
       _ownerUserId = result.ownerUserId;
       _propertyId = widget.propertyId ?? result.propertyId;
+      _currentUserId = result.currentUserId;
     });
+
+    _peerUserId = _resolvePeerUserId();
+    if (_peerUserId != null) {
+      await _loadPeerRating(_peerUserId!);
+    }
 
     if (result.success &&
         result.seekerUserId != null &&
@@ -142,6 +163,39 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     if (!mounted || !result.success) return;
     setState(() {
       _hasRated = result.hasRated;
+    });
+  }
+
+  String? _resolvePeerUserId() {
+    final currentUserId = _currentUserId;
+    final seekerId = _seekerUserId;
+    final ownerId = _ownerUserId;
+    if (currentUserId == null || seekerId == null || ownerId == null) {
+      return null;
+    }
+    return currentUserId == seekerId ? ownerId : seekerId;
+  }
+
+  Future<void> _loadPeerRating(String userId) async {
+    setState(() {
+      _isRatingLoading = true;
+    });
+    final result = await _ratingController.fetchUserRatingSummary(
+      targetUserId: userId,
+    );
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() {
+        _isRatingLoading = false;
+        _peerAverageRating = null;
+        _peerRatingCount = 0;
+      });
+      return;
+    }
+    setState(() {
+      _isRatingLoading = false;
+      _peerAverageRating = result.averageRating;
+      _peerRatingCount = result.ratingCount;
     });
   }
 
@@ -205,6 +259,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     setState(() {
       _hasRated = true;
     });
+    final peerId = _peerUserId;
+    if (peerId != null) {
+      await _loadPeerRating(peerId);
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Thank you for your rating.')),
     );
@@ -507,6 +566,48 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return const SizedBox.shrink();
   }
 
+  Widget _buildRatingSummary() {
+    if (_isRatingLoading) {
+      return const Text(
+        'Loading rating...',
+        style: TextStyle(
+          color: Color(0xFFD1D4D9),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+    if (_peerRatingCount == 0 || _peerAverageRating == null) {
+      return const Text(
+        'No ratings yet',
+        style: TextStyle(
+          color: Color(0xFFD1D4D9),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.star_rounded,
+          color: Color(0xFFF4C542),
+          size: 16,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '${_peerAverageRating!.toStringAsFixed(1)} ($_peerRatingCount)',
+          style: const TextStyle(
+            color: Color(0xFFD1D4D9),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -529,13 +630,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Text(
-                    _peerName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _peerName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildRatingSummary(),
+                    ],
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -636,15 +744,33 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                                   : const Color(0xFFDDE0E5),
                                             ),
                                           ),
-                                          child: Text(
-                                            message.messageText,
-                                            style: TextStyle(
-                                              color: message.isMine
-                                                  ? Colors.white
-                                                  : const Color(0xFF1F2430),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          child: Column(
+                                            crossAxisAlignment: message.isMine
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                message.messageText,
+                                                style: TextStyle(
+                                                  color: message.isMine
+                                                      ? Colors.white
+                                                      : const Color(0xFF1F2430),
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _formatMessageTime(message.createdAt),
+                                                style: TextStyle(
+                                                  color: message.isMine
+                                                      ? const Color(0xFFD1D4D9)
+                                                      : const Color(0xFF8E949F),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       );

@@ -9,6 +9,7 @@ class ChatThreadItem {
     required this.peerName,
     required this.lastMessageText,
     required this.lastMessageAt,
+    required this.unreadCount,
     required this.propertyId,
   });
 
@@ -17,6 +18,7 @@ class ChatThreadItem {
   final String peerName;
   final String lastMessageText;
   final DateTime? lastMessageAt;
+  final int unreadCount;
   final int? propertyId;
 }
 
@@ -120,13 +122,26 @@ class ChatListController {
       DateTime? parseDate(dynamic value) {
         final raw = value?.toString();
         if (raw == null || raw.isEmpty) return null;
-        return DateTime.tryParse(raw);
+        final hasOffset =
+            raw.endsWith('Z') || raw.contains('+') || raw.contains('-');
+        final normalized = hasOffset ? raw : '${raw}Z';
+        return DateTime.tryParse(normalized);
       }
 
       int parseInt(dynamic value) {
         if (value is int) return value;
         if (value is num) return value.toInt();
         return int.tryParse(value?.toString() ?? '') ?? 0;
+      }
+
+      final chatIds = chatRows.map((row) => parseInt(row['chat_id'])).toList();
+      final unreadChatIds = await _repository.fetchUnreadMessageChatIds(
+        currentUserId: currentUserId,
+        chatIds: chatIds,
+      );
+      final unreadCounts = <int, int>{};
+      for (final chatId in unreadChatIds) {
+        unreadCounts[chatId] = (unreadCounts[chatId] ?? 0) + 1;
       }
 
       final items = chatRows.map((row) {
@@ -138,9 +153,10 @@ class ChatListController {
         final propertyId = propertyIdRaw is int
             ? propertyIdRaw
             : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+        final chatId = parseInt(row['chat_id']);
 
         return ChatThreadItem(
-          chatId: parseInt(row['chat_id']),
+          chatId: chatId,
           peerUserId: safePeerId,
           peerName: namesById[safePeerId] ?? 'Unknown',
           lastMessageText:
@@ -148,6 +164,7 @@ class ChatListController {
                   ? (row['last_message_text'] as String)
                   : 'No messages yet.',
           lastMessageAt: parseDate(row['last_message_at']),
+          unreadCount: unreadCounts[chatId] ?? 0,
           propertyId: propertyId,
         );
       }).toList();

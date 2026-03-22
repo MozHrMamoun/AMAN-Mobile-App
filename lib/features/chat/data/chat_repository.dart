@@ -55,6 +55,25 @@ class ChatRepository {
     return result;
   }
 
+  Future<List<int>> fetchUnreadMessageChatIds({
+    required String currentUserId,
+    required List<int> chatIds,
+  }) async {
+    if (chatIds.isEmpty) return const [];
+    final rows = await _client
+        .from('chat_messages')
+        .select('chat_id')
+        .inFilter('chat_id', chatIds)
+        .isFilter('read_at', null)
+        .neq('sender_user_id', currentUserId);
+
+    return (rows as List)
+        .map((row) => row['chat_id'])
+        .whereType<num>()
+        .map((value) => value.toInt())
+        .toList();
+  }
+
   Future<Map<String, dynamic>?> findChat({
     required String ownerUserId,
     required String seekerUserId,
@@ -83,7 +102,7 @@ class ChatRepository {
           'owner_user_id': ownerUserId,
           'seeker_user_id': seekerUserId,
           'property_id': propertyId,
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         })
         .select('chat_id, owner_user_id, seeker_user_id, property_id')
         .single();
@@ -133,7 +152,7 @@ class ChatRepository {
       'chat_id': chatId,
       'sender_user_id': senderUserId,
       'message_text': messageText,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': DateTime.now().toUtc().toIso8601String(),
     });
   }
 

@@ -4,18 +4,20 @@ import 'package:flutter/services.dart';
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
 import 'core/city_data.dart';
+import 'features/fair_price/state/fair_price_controller.dart';
 import 'features/wished/state/wished_property_controller.dart';
 import 'seeker_home_page.dart';
 
-class RecommendationPage extends StatefulWidget {
-  const RecommendationPage({super.key});
+class MoreServicePage extends StatefulWidget {
+  const MoreServicePage({super.key});
 
   @override
-  State<RecommendationPage> createState() => _RecommendationPageState();
+  State<MoreServicePage> createState() => _MoreServicePageState();
 }
 
-class _RecommendationPageState extends State<RecommendationPage> {
+class _MoreServicePageState extends State<MoreServicePage> {
   final WishedPropertyController _controller = WishedPropertyController();
+  final FairPriceController _fairPriceController = FairPriceController();
 
   bool _isBuySelected = true;
   String? _propertyType;
@@ -23,11 +25,35 @@ class _RecommendationPageState extends State<RecommendationPage> {
   String? _bedrooms;
   String? _bathrooms;
   bool _isSaving = false;
+  String? _fairMonth;
+  String? _fairTransactionType;
+  String? _fairPropertyType;
+  String? _fairPropertyCity;
+  String? _fairBedrooms;
+  bool _isFairPriceLoading = false;
+  double? _fairAveragePrice;
+  int _fairSampleCount = 0;
+  String? _fairPriceError;
 
   final TextEditingController _priceController = TextEditingController();
 
   final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
   final List<String> _counts = ['1', '2', '3', '4', '5+'];
+  final List<String> _months = const [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  final List<String> _transactionTypes = ['Buy', 'Rent'];
 
   @override
   void dispose() {
@@ -77,6 +103,76 @@ class _RecommendationPageState extends State<RecommendationPage> {
       _bedrooms = null;
       _bathrooms = null;
       _priceController.clear();
+    });
+  }
+
+  int? _parseBedroomCount(String? value) {
+    if (value == null || value.isEmpty) return null;
+    if (value == '5+') return 5;
+    return int.tryParse(value);
+  }
+
+  int? _monthToNumber(String? monthName) {
+    if (monthName == null) return null;
+    final index = _months.indexOf(monthName);
+    if (index == -1) return null;
+    return index + 1;
+  }
+
+  Future<void> _showFairPrice() async {
+    if (_fairMonth == null ||
+        _fairTransactionType == null ||
+        _fairPropertyType == null ||
+        _fairPropertyCity == null ||
+        _fairBedrooms == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete all fair price fields.')),
+      );
+      return;
+    }
+
+    final monthNumber = _monthToNumber(_fairMonth);
+    final bedroomCount = _parseBedroomCount(_fairBedrooms);
+    if (monthNumber == null || bedroomCount == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid fair price selection.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isFairPriceLoading = true;
+      _fairAveragePrice = null;
+      _fairSampleCount = 0;
+      _fairPriceError = null;
+    });
+
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, monthNumber, 1);
+    final monthStartText = monthStart.toIso8601String().split('T').first;
+
+    final result = await _fairPriceController.fetchAverage(
+      monthStart: monthStartText,
+      transactionType: _fairTransactionType!,
+      propertyType: _fairPropertyType!,
+      propertyCity: _fairPropertyCity!,
+      bedrooms: bedroomCount,
+    );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _isFairPriceLoading = false;
+        _fairPriceError = result.errorMessage ?? 'Failed to load fair price.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isFairPriceLoading = false;
+      _fairAveragePrice = result.averagePrice;
+      _fairSampleCount = result.sampleCount;
     });
   }
 
@@ -164,7 +260,7 @@ class _RecommendationPageState extends State<RecommendationPage> {
                 alignment: Alignment.center,
                 children: [
                   const Text(
-                    'Recommendation',
+                    'More Service',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 35 / 2,
@@ -203,6 +299,205 @@ class _RecommendationPageState extends State<RecommendationPage> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                   child: Column(
                     children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Fair Price Average',
+                          style: TextStyle(
+                            color: Color(0xFF1F2430),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+                        decoration: BoxDecoration(
+                          color: card,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: border),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x12000000),
+                              offset: Offset(0, 3),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _FormRow(
+                              label: 'Month',
+                              child: _SelectBox(
+                                value: _fairMonth,
+                                hint: 'Place Holder...',
+                                items: _months,
+                                onChanged: (v) => setState(() => _fairMonth = v),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _FormRow(
+                              label: 'Transaction Type',
+                              child: _SelectBox(
+                                value: _fairTransactionType,
+                                hint: 'Place Holder...',
+                                items: _transactionTypes,
+                                onChanged: (v) =>
+                                    setState(() => _fairTransactionType = v),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _FormRow(
+                              label: 'Property Type',
+                              child: _SelectBox(
+                                value: _fairPropertyType,
+                                hint: 'Place Holder...',
+                                items: _propertyTypes,
+                                onChanged: (v) =>
+                                    setState(() => _fairPropertyType = v),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _FormRow(
+                              label: 'Property City',
+                              child: _SelectBox(
+                                value: _fairPropertyCity,
+                                hint: 'Place Holder...',
+                                items: CityData.allCities,
+                                onChanged: (v) =>
+                                    setState(() => _fairPropertyCity = v),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _FormRow(
+                              label: 'Bedrooms',
+                              child: _SelectBox(
+                                value: _fairBedrooms,
+                                hint: '4',
+                                items: _counts,
+                                onChanged: (v) =>
+                                    setState(() => _fairBedrooms = v),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 36,
+                        child: ElevatedButton(
+                          onPressed: _isFairPriceLoading ? null : _showFairPrice,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: _isFairPriceLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Text(
+                                  'Show Fair Price',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: border),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x12000000),
+                              offset: Offset(0, 3),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: _fairPriceError != null
+                            ? Text(
+                                _fairPriceError!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFFB00020),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            : _fairAveragePrice != null
+                                ? Column(
+                                    children: [
+                                      const Text(
+                                        'Fair Price',
+                                        style: TextStyle(
+                                          color: Color(0xFF1F2430),
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _fairAveragePrice!.toStringAsFixed(2),
+                                        style: const TextStyle(
+                                          color: Color(0xFF1C2A4A),
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Samples: $_fairSampleCount',
+                                        style: const TextStyle(
+                                          color: Color(0xFF8E949F),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const Text(
+                                    'Select options and press Show Fair Price.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFF8E949F),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                      ),
+                      const SizedBox(height: 22),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Recommendation',
+                          style: TextStyle(
+                            color: Color(0xFF1F2430),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),

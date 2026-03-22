@@ -80,17 +80,6 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                 child: Stack(
                   children: [
                     Positioned(
-                      top: 12,
-                      left: 8,
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                        color: Colors.white,
-                      ),
-                    ),
-                    Positioned(
                       left: 0,
                       right: 0,
                       bottom: -6,
@@ -117,7 +106,7 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
             Container(
               width: double.infinity,
               color: page,
-              padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 64),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

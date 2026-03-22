@@ -37,6 +37,35 @@ class RatingActionResult {
   }
 }
 
+class RatingSummaryResult {
+  const RatingSummaryResult._({
+    required this.success,
+    this.errorMessage,
+    this.averageRating,
+    this.ratingCount = 0,
+  });
+
+  final bool success;
+  final String? errorMessage;
+  final double? averageRating;
+  final int ratingCount;
+
+  factory RatingSummaryResult.success({
+    required double? averageRating,
+    required int ratingCount,
+  }) {
+    return RatingSummaryResult._(
+      success: true,
+      averageRating: averageRating,
+      ratingCount: ratingCount,
+    );
+  }
+
+  factory RatingSummaryResult.error(String message) {
+    return RatingSummaryResult._(success: false, errorMessage: message);
+  }
+}
+
 class RatingController {
   RatingController({RatingRepository? repository})
       : _repository = repository ?? RatingRepository();
@@ -94,6 +123,31 @@ class RatingController {
       );
     } catch (_) {
       return RatingActionResult.error('Unexpected error while submitting rating.');
+    }
+  }
+
+  Future<RatingSummaryResult> fetchUserRatingSummary({
+    required String targetUserId,
+  }) async {
+    try {
+      final ratings = await _repository.fetchRatingsForUser(
+        targetUserId: targetUserId,
+      );
+      if (ratings.isEmpty) {
+        return RatingSummaryResult.success(averageRating: null, ratingCount: 0);
+      }
+      final sum = ratings.fold<double>(0, (total, value) => total + value);
+      final average = sum / ratings.length;
+      return RatingSummaryResult.success(
+        averageRating: average,
+        ratingCount: ratings.length,
+      );
+    } on PostgrestException catch (e) {
+      return RatingSummaryResult.error(
+        e.message.isEmpty ? 'Failed to load rating.' : e.message,
+      );
+    } catch (_) {
+      return RatingSummaryResult.error('Unexpected error while loading rating.');
     }
   }
 }

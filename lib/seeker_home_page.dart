@@ -9,7 +9,7 @@ import 'features/properties/state/seeker_home_controller.dart';
 import 'message_page.dart';
 import 'notification_page.dart';
 import 'property_detail_page.dart';
-import 'recommendation_page.dart';
+import 'more_service_page.dart';
 import 'search_property_page.dart';
 import 'features/notifications/state/notification_controller.dart';
 
@@ -223,7 +223,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
         case 3:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const RecommendationPage()),
+            MaterialPageRoute(builder: (_) => const MoreServicePage()),
           );
           break;
       }
