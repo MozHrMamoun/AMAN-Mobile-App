@@ -392,51 +392,6 @@ class _TopIconsRow extends StatelessWidget {
   }
 }
 
-class _FilterRow extends StatelessWidget {
-  const _FilterRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        _ChipItem(label: 'City'),
-        Spacer(),
-        _ChipItem(label: 'Price'),
-        Spacer(),
-        _ChipItem(label: 'Type'),
-      ],
-    );
-  }
-}
-
-class _ChipItem extends StatelessWidget {
-  const _ChipItem({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 68,
-      height: 30,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDDE0E5)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFF1F2430),
-          fontSize: 18 / 1.4,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
 
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.item, required this.onTap});
