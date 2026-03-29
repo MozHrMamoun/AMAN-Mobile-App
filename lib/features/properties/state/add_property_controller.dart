@@ -56,6 +56,10 @@ class AddPropertyController {
       return AddPropertyResult.error('Please complete property type/state/city.');
     }
 
+    if (bedrooms == null || bathrooms == null) {
+      return AddPropertyResult.error('Bedrooms and bathrooms are required.');
+    }
+
     final trimmedPrice = priceText.trim();
     final trimmedArea = areaText.trim();
     if (trimmedPrice.isEmpty || trimmedArea.isEmpty) {
@@ -72,14 +76,24 @@ class AddPropertyController {
       return AddPropertyResult.error('Please attach at least one property image.');
     }
 
+    if (locationUrl.trim().isEmpty) {
+      return AddPropertyResult.error('Location URL is required.');
+    }
+
+    if (description.trim().isEmpty) {
+      return AddPropertyResult.error('Description is required.');
+    }
+
+    if (certificateFile == null) {
+      return AddPropertyResult.error('Certificate image is required.');
+    }
+
     try {
       String? certificateUrl;
-      if (certificateFile != null) {
-        certificateUrl = await _repository.uploadCertificate(
-          ownerId: userId,
-          file: certificateFile,
-        );
-      }
+      certificateUrl = await _repository.uploadCertificate(
+        ownerId: userId,
+        file: certificateFile,
+      );
 
       final propertyId = await _repository.insertProperty(
         ownerId: userId,
@@ -91,9 +105,9 @@ class AddPropertyController {
         bathrooms: _parseRoomCount(bathrooms),
         price: price,
         areaSqm: area,
-        locationUrl: locationUrl.trim().isEmpty ? null : locationUrl.trim(),
+        locationUrl: locationUrl.trim(),
         certificateUrl: certificateUrl,
-        description: description.trim().isEmpty ? null : description.trim(),
+        description: description.trim(),
       );
 
       final imageUrls = <String>[];

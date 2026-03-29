@@ -11,7 +11,9 @@ import 'search_property_page.dart';
 import 'seeker_home_page.dart';
 
 class MessagePage extends StatefulWidget {
-  const MessagePage({super.key});
+  const MessagePage({super.key, this.initialRole});
+
+  final String? initialRole;
 
   @override
   State<MessagePage> createState() => _MessagePageState();
@@ -22,7 +24,7 @@ class _MessagePageState extends State<MessagePage> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  String? _currentRole;
+  String _currentRole = 'seeker';
   List<ChatThreadItem> _threads = const [];
 
   String _formatTime(DateTime? value) {
@@ -38,6 +40,7 @@ class _MessagePageState extends State<MessagePage> {
   @override
   void initState() {
     super.initState();
+    _currentRole = widget.initialRole ?? 'seeker';
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -139,21 +142,19 @@ class _MessagePageState extends State<MessagePage> {
     const primary = Color(0xFF1C2A4A);
     const page = Color(0xFFE9EAEC);
 
-    if (_currentRole == null) {
-      return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _goBack();
+        }
+      },
+      child: Scaffold(
         backgroundColor: primary,
-        body: const SafeArea(
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: primary,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
               child: Stack(
@@ -359,9 +360,9 @@ class _MessagePageState extends State<MessagePage> {
               ),
             ),
           ],
+          ),
         ),
-      ),
-      bottomNavigationBar: NavigationBarTheme(
+        bottomNavigationBar: NavigationBarTheme(
         data: const NavigationBarThemeData(
           height: 72,
           indicatorColor: Colors.transparent,
@@ -417,6 +418,7 @@ class _MessagePageState extends State<MessagePage> {
                     label: 'MORE',
                   ),
                 ],
+        ),
         ),
       ),
     );

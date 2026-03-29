@@ -215,11 +215,13 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
           );
           break;
         case 2:
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MessagePage()),
-          );
-          break;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MessagePage(initialRole: 'seeker'),
+          ),
+        );
+        break;
         case 3:
           Navigator.pushReplacement(
             context,

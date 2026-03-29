@@ -158,7 +158,9 @@ class _SearchResultPageState extends State<SearchResultPage> {
         case 2:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const MessagePage()),
+            MaterialPageRoute(
+              builder: (_) => const MessagePage(initialRole: 'seeker'),
+            ),
           );
           break;
         case 3:
@@ -251,7 +253,7 @@ class _SearchResultPageState extends State<SearchResultPage> {
                                                 crossAxisCount: 2,
                                                 crossAxisSpacing: 16,
                                                 mainAxisSpacing: 16,
-                                                mainAxisExtent: 290,
+                                                mainAxisExtent: 340,
                                               ),
                                           itemCount: _items.length + (_isLoadingMore ? 1 : 0),
                                           itemBuilder: (context, index) {
@@ -462,16 +464,20 @@ class _ResultCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Bedrooms: ${item.bedrooms ?? '-'}\n'
-                'Bathrooms: ${item.bathrooms ?? '-'}\n'
-                'Owner: ${item.ownerName}\n'
-                'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
-                style: const TextStyle(
-                  color: Color(0xFF8E949F),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  height: 1.25,
+              Expanded(
+                child: Text(
+                  'Bedrooms: ${item.bedrooms ?? '-'}\n'
+                  'Bathrooms: ${item.bathrooms ?? '-'}\n'
+                  'Owner: ${item.ownerName}\n'
+                  'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
+                  maxLines: 5,
+                  overflow: TextOverflow.clip,
+                  style: const TextStyle(
+                    color: Color(0xFF8E949F),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
                 ),
               ),
             ],

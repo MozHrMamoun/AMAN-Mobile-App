@@ -92,7 +92,9 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MessagePage()),
+          MaterialPageRoute(
+            builder: (_) => const MessagePage(initialRole: 'owner'),
+          ),
         );
         break;
       case 3:

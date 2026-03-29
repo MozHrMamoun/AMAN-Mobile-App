@@ -86,49 +86,56 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
     const border = AppColors.border;
     const inputBg = AppColors.inputBackground;
 
-    return Scaffold(
-      backgroundColor: primary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Text(
-                    'Search Property',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 37 / 2,
-                      fontWeight: FontWeight.w700,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _goToSeekerHome();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: primary,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text(
+                      'Search Property',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 37 / 2,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: _goToSeekerHome,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      color: Colors.white,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: _goToSeekerHome,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: page,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
+                  ],
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                  child: Column(
-                    children: [
+              ),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: page,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                    child: Column(
+                      children: [
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
@@ -220,22 +227,6 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                             ),
                             const SizedBox(height: 14),
                             _LabeledRow(
-                              label: 'Bathrooms',
-                              child: _SelectBox(
-                                hint: '4',
-                                value: _bathrooms,
-                                items: _roomCounts,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _bathrooms = value;
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _LabeledRow(
                               label: 'Bedrooms',
                               child: _SelectBox(
                                 hint: '4',
@@ -244,6 +235,22 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                 onChanged: (value) {
                                   setState(() {
                                     _bedrooms = value;
+                                  });
+                                },
+                                border: border,
+                                fill: inputBg,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _LabeledRow(
+                              label: 'Bathrooms',
+                              child: _SelectBox(
+                                hint: '4',
+                                value: _bathrooms,
+                                items: _roomCounts,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _bathrooms = value;
                                   });
                                 },
                                 border: border,
@@ -404,12 +411,13 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                           ),
                         ],
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

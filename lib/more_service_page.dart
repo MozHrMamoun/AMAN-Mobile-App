@@ -249,11 +249,21 @@ class _MoreServicePageState extends State<MoreServicePage> {
     const card = AppColors.card;
     const border = AppColors.border;
 
-    return Scaffold(
-      backgroundColor: primary,
-      body: SafeArea(
-        child: Column(
-          children: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const SeekerHomePage()),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: primary,
+        body: SafeArea(
+          child: Column(
+            children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
               child: Stack(
@@ -624,7 +634,8 @@ class _MoreServicePageState extends State<MoreServicePage> {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
