@@ -1,0 +1,443 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Length 2245 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(# AMAN Codex Chat Handoff) Tj
+T* () Tj
+T* (This document is a shareable handoff compiled from the Codex session history available in) Tj
+T* (this workspace. It is intended to give another user or another Codex session enough) Tj
+T* (context to continue the project with similar understanding.) Tj
+T* () Tj
+T* (## Important note) Tj
+T* (- This is not an official platform-level export of the full Codex conversation UI.) Tj
+T* (- It is a structured handoff built from the session context and project work.) Tj
+T* (- For continuity, this document should be shared together with the codebase.) Tj
+T* () Tj
+T* (## Project identity) Tj
+T* (- Project name: AMAN) Tj
+T* (- Main mobile app path: `AMAN/mobile_app`) Tj
+T* (- Admin web path: `AMAN/admin_web`) Tj
+T* (- Backend: Supabase) Tj
+T* (- Mobile stack: Flutter) Tj
+T* (- Admin stack: React + Vite + Supabase) Tj
+T* () Tj
+T* (## Core architecture) Tj
+T* (### Authentication) Tj
+T* (- Supabase Auth stores real credentials using email and password.) Tj
+T* (- The app also uses a `public.user` table to store business profile data:) Tj
+T* (  - `user_id`) Tj
+T* (  - `email`) Tj
+T* (  - `username`) Tj
+T* (  - `role`) Tj
+T* (  - `full_name`) Tj
+T* (  - `phone`) Tj
+T* (  - `id_number`) Tj
+T* (- Login uses username in the UI, then looks up the email from `public.user`, then signs in) Tj
+T* ( to Supabase Auth using email and password.) Tj
+T* (- Registration creates the Supabase auth user first, then upserts profile data into) Tj
+T* (`public.user`.) Tj
+T* (- Role-based navigation sends `owner` to owner home and all others to seeker home.) Tj
+T* () Tj
+T* (### Property management) Tj
+T* (- Owner add/update/delete is handled via page -> controller -> repository.) Tj
+T* (- Property rows are stored in `properties`.) Tj
+T* (- Property images are stored in `property_images` and the files themselves are stored in) Tj
+T* (the Supabase storage bucket `property-images`.) Tj
+T* (- Certificates are stored in the Supabase storage bucket `property-certificates`.) Tj
+T* (- Add property flow:) Tj
+T* (  1. Validate form) Tj
+T* (  2. Upload certificate) Tj
+T* (  3. Insert property row) Tj
+T* (  4. Upload property images) Tj
+T* (  5. Insert property image rows) Tj
+ET
+endstream
+endobj
+3 0 obj
+<< /Length 2494 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(- Update property flow:) Tj
+T* (  1. Load property for current owner) Tj
+T* (  2. Update price/location/description/status) Tj
+T* (  3. Upload any newly attached images) Tj
+T* (  4. Insert those new image rows) Tj
+T* (- Delete property flow:) Tj
+T* (  1. Confirm in UI) Tj
+T* (  2. Remove property image files from storage) Tj
+T* (  3. Remove leftover files under the property folder path) Tj
+T* (  4. Remove certificate file) Tj
+T* (  5. Delete property row) Tj
+T* () Tj
+T* (### Seeker behavior) Tj
+T* (- Seeker home shows active properties from the database.) Tj
+T* (- Search uses RPC-backed property filtering.) Tj
+T* (- Property details page supports images and location navigation.) Tj
+T* (- Guests can browse/search/view details but other actions require login.) Tj
+T* () Tj
+T* (### Recommendation / wished property) Tj
+T* (- The recommendation feature is used when the seeker does not find the property they want.) Tj
+T* (- The seeker saves desired property criteria into `wished_property`.) Tj
+T* (- A notification/matching flow was built to match wishes against properties.) Tj
+T* (- Exact SQL matching existed before and was later disabled while testing AI matching.) Tj
+T* () Tj
+T* (### Messaging and deals) Tj
+T* (- Contact from property cards opens the relevant owner/seeker chat.) Tj
+T* (- Chat behavior, unread messages, and deal completion were implemented over multiple) Tj
+T* (iterations.) Tj
+T* (- Deals can drive property status changes to inactive after completion.) Tj
+T* (- Ratings were discussed and wired after deal completion, with several database) Tj
+T* (adjustments along the way.) Tj
+T* () Tj
+T* (## Admin dashboard) Tj
+T* (- A separate admin web project was created under `AMAN/admin_web`.) Tj
+T* (- Stack: React + Vite + Supabase.) Tj
+T* (- Supabase connection is provided through a `.env` file using:) Tj
+T* (  - `VITE_SUPABASE_URL`) Tj
+T* (  - `VITE_SUPABASE_ANON_KEY`) Tj
+T* (- The admin dashboard includes a login flow and real counts pulled from Supabase.) Tj
+T* (- Hosting recommendation was to use Vercel, Netlify, or Cloudflare Pages rather than) Tj
+T* (trying to host the React site directly on Supabase.) Tj
+T* () Tj
+T* (## Major chronological history) Tj
+T* (Below is a chronological summary of the main requests, fixes, and architectural decisions) Tj
+T* (made during this session history.) Tj
+T* () Tj
+T* (### 1. Profile and edit pages) Tj
+T* (- Edit information page and profile flow were built/refined.) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Length 2488 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(- Seeker and owner navigation around profile and edit screens were adjusted.) Tj
+T* (- State management was repeatedly requested and preserved during changes.) Tj
+T* () Tj
+T* (### 2. Owner follow-up property page) Tj
+T* (- The follow-up property page was made owner-specific.) Tj
+T* (- It now shows only properties linked to the logged-in owner.) Tj
+T* (- The card header shows property type and state/city.) Tj
+T* (- Bedroom and bathroom counts were shown numerically.) Tj
+T* (- Update was linked to the specific property.) Tj
+T* (- Delete was wired.) Tj
+T* (- Image attachment for update/add was expanded to support multiple images.) Tj
+T* () Tj
+T* (### 3. Property deletion and storage cleanup) Tj
+T* (- Delete logic was extended so property images in storage are deleted when a property is) Tj
+T* (removed.) Tj
+T* (- Additional attempts were made to ensure the virtual folder path) Tj
+T* (`properties/{ownerId}/{propertyId}` is cleaned by removing remaining files under that) Tj
+T* (path.) Tj
+T* (- Certificate cleanup on property delete was also implemented.) Tj
+T* () Tj
+T* (### 4. State management cleanup) Tj
+T* (- The codebase was reviewed to ensure state management was consistently applied in auth,) Tj
+T* (profile, property, notifications, deals, and wished-property flows.) Tj
+T* () Tj
+T* (### 5. Seeker home page wiring) Tj
+T* (- Properties from the database were wired into seeker home page cards.) Tj
+T* (- Cards were made responsive and show:) Tj
+T* (  - first image) Tj
+T* (  - bedrooms) Tj
+T* (  - bathrooms) Tj
+T* (  - owner name) Tj
+T* (  - rating) Tj
+T* (- Search/filter dropdowns for city and type were wired so changing the value filters the) Tj
+T* (displayed results.) Tj
+T* () Tj
+T* (### 6. Property details page improvements) Tj
+T* (- Each property card was linked to its property details page.) Tj
+T* (- A new area row was added below the price row.) Tj
+T* (- Location info was made clickable to open the property location in Google Maps.) Tj
+T* (- All property images were made available to the seeker for browsing/swapping.) Tj
+T* () Tj
+T* (### 7. Search and search results) Tj
+T* (- Search property page was wired to search the database.) Tj
+T* (- Search results page was made to show matched results from the backend.) Tj
+T* (- The profile icon on search results was made functional.) Tj
+T* (- Search page/navigation behavior in guest mode and back-stack behavior on physical back) Tj
+T* (were refined.) Tj
+T* () Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Length 2650 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(### 8. Project/database design discussions) Tj
+T* (- Wished property table design was discussed and then wired to the app.) Tj
+T* (- Recommendation page purpose was clarified: a seeker saves the exact property details) Tj
+T* (they want when search has no suitable result.) Tj
+T* (- Rating table design was discussed multiple times and simplified so users rate each) Tj
+T* (other, not the property.) Tj
+T* (- Chat/message table design was discussed, including whether to store message files or) Tj
+T* (rows.) Tj
+T* (- SQL for removing unnecessary columns like URL/message type was discussed.) Tj
+T* () Tj
+T* (### 9. Saved-success dialogs) Tj
+T* (- A saved successfully confirmation UI was added after owner property add.) Tj
+T* (- Similar success behavior was later requested for seeker recommendation saving as well.) Tj
+T* () Tj
+T* (### 10. Guest mode) Tj
+T* (- Guest mode was revised so entering as guest goes directly to home.) Tj
+T* (- Guest users can search and view property details.) Tj
+T* (- Restricted features show a login-required message instead of forcing a redirect.) Tj
+T* (- Ability to navigate back to landing page from guest mode was added.) Tj
+T* () Tj
+T* (### 11. Messaging and chat behavior) Tj
+T* (- The message page was linked properly for each user.) Tj
+T* (- Contact from a property opens the chat with the corresponding owner.) Tj
+T* (- Back navigation from messages was fixed.) Tj
+T* (- Reloading/flicker behavior in messages after new sends was improved.) Tj
+T* (- Timing/unread display behavior in chats and message lists was improved.) Tj
+T* (- Last message time and unread counts were shown.) Tj
+T* (- The header was updated to show user names.) Tj
+T* (- Time formatting was refined toward chat-style times rather than raw date stamps.) Tj
+T* () Tj
+T* (### 12. Project rename to AMAN) Tj
+T* (- The project name was changed to AMAN.) Tj
+T* (- Necessary file and identifier changes were made around the rename.) Tj
+T* (- Guidance was given for GitHub remote setup and future pushes.) Tj
+T* () Tj
+T* (### 13. Recommendation page renamed to More Service) Tj
+T* (- Recommendation page was renamed to More Service.) Tj
+T* (- Fair Price Average controls were added.) Tj
+T* (- The page was split into service sections such as fair price average and recommendation.) Tj
+T* () Tj
+T* (### 14. Fair price average feature) Tj
+T* (- A monthly fair price snapshot design was introduced.) Tj
+T* (- SQL functions and queries were discussed to compute monthly averages by:) Tj
+T* (  - month) Tj
+T* (  - transaction type) Tj
+T* (  - property type) Tj
+T* (  - property city) Tj
+T* (  - bedrooms) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 2624 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(- Matching app UI was added with selectable month.) Tj
+T* (- The app was wired to fetch the matching card from `fair_price_averages`.) Tj
+T* (- Several SQL fixes were made for ambiguity and test data issues.) Tj
+T* () Tj
+T* (### 15. Seed/test property data) Tj
+T* (- Large SQL batches were provided to insert hundreds of property rows.) Tj
+T* (- Data was spread across multiple states and cities.) Tj
+T* (- Owner IDs were distributed across four provided users.) Tj
+T* (- Search/filter and RPC behavior with seeded data were debugged.) Tj
+T* () Tj
+T* (### 16. Deals and ratings) Tj
+T* (- Safer deal flow was recommended.) Tj
+T* (- Deal implementation required `property_id` and database updates.) Tj
+T* (- Property status becomes inactive after a completed deal.) Tj
+T* (- Ratings after deal completion were discussed and implemented using 1-5 decimal values.) Tj
+T* (- RLS and schema issues around deals and ratings were debugged.) Tj
+T* () Tj
+T* (### 17. Notifications and wish matching) Tj
+T* (- SQL-based scheduled matching was originally created using `cron.job` and) Tj
+T* (`match_wished_properties\(\)` every 2 minutes.) Tj
+T* (- That scheduled SQL matcher was later identified and disabled to test AI matching) Tj
+T* (instead.) Tj
+T* (- In-app only matching was preferred over push notifications or scheduled cloud) Tj
+T* (automation.) Tj
+T* () Tj
+T* (### 18. AI matching attempt with OpenAI) Tj
+T* (- A Supabase Edge Function `ai_match_recommendations` was created.) Tj
+T* (- The function authenticates the user, fetches recent wishes, fetches candidate) Tj
+T* (properties, then uses an AI model to score matches and insert rows into `notifications`.) Tj
+T* (- During testing, multiple issues were fixed:) Tj
+T* (  - improper code pasted as diff instead of raw source) Tj
+T* (  - missing secrets) Tj
+T* (  - authorization/JWT handling) Tj
+T* (  - CORS/OPTIONS handling) Tj
+T* (  - Responses API parameter updates) Tj
+T* (  - structured output schema updates) Tj
+T* (- Final blocker: OpenAI quota exhaustion.) Tj
+T* () Tj
+T* (### 19. Switch from OpenAI to Gemini) Tj
+T* (- The same edge-function idea was migrated to Gemini after OpenAI quota ran out.) Tj
+T* (- A Gemini API key was created and added as a secret.) Tj
+T* (- The function was rewritten to call `gemini-2.5-flash:generateContent` with JSON schema) Tj
+T* (output.) Tj
+T* (- Further testing was expected after the Gemini migration.) Tj
+T* () Tj
+T* (### 20. Add Property UX improvements) Tj
+T* (- All add-property fields were made mandatory.) Tj
+T* (- Draft saving was added so partially entered forms persist.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Length 2705 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(- Image preview and reorder were added.) Tj
+T* (- Input helpers were added for price and area units.) Tj
+T* (- Reordering was later adjusted so drag can start immediately without long press.) Tj
+T* () Tj
+T* (### 21. Admin dashboard setup) Tj
+T* (- A separate `admin_web` project was scaffolded.) Tj
+T* (- Supabase `.env` setup was added with provided URL and anon key.) Tj
+T* (- Real counts from Supabase were wired into the dashboard.) Tj
+T* (- An admin login screen was added.) Tj
+T* (- Guidance was provided for creating an admin user and updating the role constraint so) Tj
+T* (`admin` is allowed.) Tj
+T* () Tj
+T* (### 22. Java/Gradle environment issues) Tj
+T* (- Java 8 install at `C:\\Program Files\\Java\\jre1.8.0_481` was found corrupted.) Tj
+T* (- A mismatch between Java 25 and Gradle caused `Unsupported class file major version 69`.) Tj
+T* (- The working Java setup was moved to Temurin/OpenJDK 17.) Tj
+T* (- Guidance was provided to set `JAVA_HOME`, clean `PATH`, remove the broken JRE, and pin) Tj
+T* (Gradle to Java 17.) Tj
+T* () Tj
+T* (### 23. Testing work) Tj
+T* (- Unit tests were added for auth and wished-property controller flows.) Tj
+T* (- `flutter analyze` was brought to green for the targeted work.) Tj
+T* (- Testable hooks were added where needed, for example injecting a notification controller) Tj
+T* (into wished-property flow.) Tj
+T* () Tj
+T* (### 24. Latest explanatory work) Tj
+T* (- A detailed explanation was provided for login and registration logic.) Tj
+T* (- A simple text flow diagram was provided for auth.) Tj
+T* (- A detailed explanation was also provided for owner add property, update, and delete) Tj
+T* (flows.) Tj
+T* () Tj
+T* (## Key files worth opening first) Tj
+T* (### Mobile app auth) Tj
+T* (- `AMAN/mobile_app/lib/features/auth/presentation/login_page.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/auth/presentation/register_page.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/auth/state/auth_controller.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/auth/data/auth_repository.dart`) Tj
+T* () Tj
+T* (### Mobile app properties) Tj
+T* (- `AMAN/mobile_app/lib/add_property_page.dart`) Tj
+T* (- `AMAN/mobile_app/lib/follow_up_property_page.dart`) Tj
+T* (- `AMAN/mobile_app/lib/update_property_page.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/properties/state/add_property_controller.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/properties/state/update_property_controller.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/properties/state/follow_up_properties_controller.dart`) Tj
+T* (- `AMAN/mobile_app/lib/features/properties/data/property_repository.dart`) Tj
+T* () Tj
+T* (### Mobile app wished/notifications/deals) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Length 1356 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 742 Tm
+14 TL
+(- `AMAN/mobile_app/lib/features/wished/...`) Tj
+T* (- `AMAN/mobile_app/lib/features/notifications/...`) Tj
+T* (- `AMAN/mobile_app/lib/features/deals/...`) Tj
+T* () Tj
+T* (### Admin web) Tj
+T* (- `AMAN/admin_web/src/App.jsx`) Tj
+T* (- `AMAN/admin_web/src/lib/supabase.js`) Tj
+T* (- `AMAN/admin_web/.env`) Tj
+T* () Tj
+T* (### Edge Function) Tj
+T* (- `AMAN/supabase/functions/ai_match_recommendations/index.ts`) Tj
+T* () Tj
+T* (## Important operational notes) Tj
+T* (- Another Codex session will not automatically inherit this exact conversation memory from) Tj
+T* ( a PDF alone.) Tj
+T* (- The most effective handoff is: codebase + this document + any SQL schema/functions) Tj
+T* (currently active in Supabase.) Tj
+T* (- If continuing AI matching work, verify the current deployed edge function, secrets, and) Tj
+T* (whether Gemini is active.) Tj
+T* (- If continuing admin work, verify RLS and admin-role handling in both Auth and the) Tj
+T* (`public.user` table.) Tj
+T* () Tj
+T* (## Suggested handoff instruction for the next user) Tj
+T* (A good first prompt for another Codex session is:) Tj
+T* () Tj
+T* ("Read `CHAT_HANDOFF.md` first, then inspect the mobile auth flow, property repository, and) Tj
+T* ( admin dashboard setup. Continue from the current AMAN state without undoing existing) Tj
+T* (architecture.") Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Pages /Kids [ 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 16 0 R ] /Count 7 >>
+endobj
+10 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 2 0 R >>
+endobj
+11 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 3 0 R >>
+endobj
+12 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 4 0 R >>
+endobj
+13 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 5 0 R >>
+endobj
+14 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 6 0 R >>
+endobj
+15 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 7 0 R >>
+endobj
+16 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 8 0 R >>
+endobj
+17 0 obj
+<< /Type /Catalog /Pages 9 0 R >>
+endobj
+xref
+0 18
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000002382 00000 n 
+0000004928 00000 n 
+0000007468 00000 n 
+0000010170 00000 n 
+0000012846 00000 n 
+0000015603 00000 n 
+0000017011 00000 n 
+0000017113 00000 n 
+0000017240 00000 n 
+0000017367 00000 n 
+0000017494 00000 n 
+0000017621 00000 n 
+0000017748 00000 n 
+0000017875 00000 n 
+0000018002 00000 n 
+trailer
+<< /Size 18 /Root 17 0 R >>
+startxref
+18052
+%%EOF
