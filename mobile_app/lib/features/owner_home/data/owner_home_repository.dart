@@ -32,6 +32,15 @@ class OwnerHomeRepository {
     return (rows as List).length;
   }
 
+  Future<int> countInactiveListings(String ownerId) async {
+    final rows = await _client
+        .from('properties')
+        .select('property_id')
+        .eq('owner_id', ownerId)
+        .eq('status', 'inactive');
+    return (rows as List).length;
+  }
+
   Future<int> countPendingDeals(String ownerId) async {
     final rows = await _client
         .from('deals')

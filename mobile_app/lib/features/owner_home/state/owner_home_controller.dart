@@ -19,6 +19,7 @@ class OwnerDashboardResult {
     required this.success,
     this.errorMessage,
     this.activeListings = 0,
+    this.inactiveListings = 0,
     this.pendingDeals = 0,
     this.unreadMessages = 0,
     this.activities = const [],
@@ -27,12 +28,14 @@ class OwnerDashboardResult {
   final bool success;
   final String? errorMessage;
   final int activeListings;
+  final int inactiveListings;
   final int pendingDeals;
   final int unreadMessages;
   final List<OwnerActivityItem> activities;
 
   factory OwnerDashboardResult.success({
     required int activeListings,
+    required int inactiveListings,
     required int pendingDeals,
     required int unreadMessages,
     required List<OwnerActivityItem> activities,
@@ -40,6 +43,7 @@ class OwnerDashboardResult {
     return OwnerDashboardResult._(
       success: true,
       activeListings: activeListings,
+      inactiveListings: inactiveListings,
       pendingDeals: pendingDeals,
       unreadMessages: unreadMessages,
       activities: activities,
@@ -74,6 +78,7 @@ class OwnerHomeController {
       }
 
       final activeListings = await _repository.countActiveListings(ownerId);
+      final inactiveListings = await _repository.countInactiveListings(ownerId);
       final pendingDeals = await _repository.countPendingDeals(ownerId);
 
       final chatRows = await _repository.fetchChatsForUser(ownerId);
@@ -126,6 +131,7 @@ class OwnerHomeController {
 
       return OwnerDashboardResult.success(
         activeListings: activeListings,
+        inactiveListings: inactiveListings,
         pendingDeals: pendingDeals,
         unreadMessages: unreadMessages,
         activities: activities,
