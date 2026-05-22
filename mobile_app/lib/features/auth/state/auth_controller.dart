@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/input_validators.dart';
 import '../data/auth_repository.dart';
 
 class AuthActionResult {
@@ -15,7 +16,7 @@ class AuthActionResult {
   final String? role;
   final bool requiresEmailVerification;
 
-  factory AuthActionResult.success({required String role}) {
+  factory AuthActionResult.success({String? role}) {
     return AuthActionResult._(success: true, role: role);
   }
 
@@ -98,12 +99,24 @@ class AuthController {
       return AuthActionResult.error('Please fill all fields.');
     }
 
-    if (password.trim().length < 6) {
-      return AuthActionResult.error('Password should be at least 6 characters.');
-    }
-
     final normalizedEmail = email.trim().toLowerCase();
     final normalizedUsername = username.trim().toLowerCase();
+    final emailError = InputValidators.validateEmail(normalizedEmail);
+    if (emailError != null) {
+      return AuthActionResult.error(emailError);
+    }
+    final passwordError = InputValidators.validateStrongPassword(password);
+    if (passwordError != null) {
+      return AuthActionResult.error(passwordError);
+    }
+    final phoneError = InputValidators.validateSudanPhoneNumber(phone);
+    if (phoneError != null) {
+      return AuthActionResult.error(phoneError);
+    }
+    final idNumberError = InputValidators.validateIdNumber(idNumber);
+    if (idNumberError != null) {
+      return AuthActionResult.error(idNumberError);
+    }
 
     try {
       final existing = await _repository.findUserByUsername(normalizedUsername);
@@ -151,6 +164,27 @@ class AuthController {
       );
     } catch (_) {
       return AuthActionResult.error('Unexpected error. Please try again.');
+    }
+  }
+
+  Future<AuthActionResult> sendPasswordResetEmail({
+    required String email,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final emailError = InputValidators.validateEmail(normalizedEmail);
+    if (emailError != null) {
+      return AuthActionResult.error(emailError);
+    }
+
+    try {
+      await _repository.sendPasswordResetEmail(email: normalizedEmail);
+      return AuthActionResult.success();
+    } on AuthException catch (error) {
+      return AuthActionResult.error(error.message);
+    } catch (_) {
+      return AuthActionResult.error(
+        'Unexpected error while sending reset email.',
+      );
     }
   }
 }

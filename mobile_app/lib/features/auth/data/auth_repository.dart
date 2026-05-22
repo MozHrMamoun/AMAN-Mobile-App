@@ -6,6 +6,8 @@ class AuthRepository {
   AuthRepository({SupabaseClient? client})
       : _client = client ?? SupabaseClientProvider.client;
 
+  static const String passwordResetRedirectUrl = 'aman://reset-password';
+
   final SupabaseClient _client;
 
   Future<Map<String, dynamic>?> findUserByUsername(String username) async {
@@ -38,6 +40,15 @@ class AuthRepository {
       email: email,
       password: password,
       data: data,
+    );
+  }
+
+  Future<void> sendPasswordResetEmail({
+    required String email,
+  }) {
+    return _client.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      redirectTo: passwordResetRedirectUrl,
     );
   }
 

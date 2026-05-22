@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/app_session.dart';
 import '../../home/presentation/home_page.dart';
@@ -226,17 +227,26 @@ class _AuthRegisterPageState extends State<AuthRegisterPage> {
                             const SizedBox(height: 12),
                             const _InputLabel('Phone Number'),
                             _InputField(
-                              hint: 'Enter Your Phone Number',
+                              hint: '+249XXXXXXXXX',
                               icon: Icons.phone,
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                LengthLimitingTextInputFormatter(13),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             const _InputLabel('ID Number'),
                             _InputField(
-                              hint: 'Enter Your ID Number',
+                              hint: '11 digits only',
                               icon: Icons.badge,
                               controller: _idNumberController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(11),
+                              ],
                             ),
                           ],
                         ),
@@ -391,6 +401,7 @@ class _InputField extends StatelessWidget {
     required this.controller,
     this.obscure = false,
     this.keyboardType,
+    this.inputFormatters,
   });
 
   final String hint;
@@ -398,6 +409,7 @@ class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscure;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -405,6 +417,7 @@ class _InputField extends StatelessWidget {
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         isDense: true,
         filled: true,

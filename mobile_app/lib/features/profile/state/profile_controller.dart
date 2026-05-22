@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/input_validators.dart';
 import '../data/profile_repository.dart';
 
 class ProfileData {
@@ -72,6 +73,16 @@ class ProfileController {
       return ProfileActionResult.error('Please fill all required fields.');
     }
 
+    final emailError = InputValidators.validateEmail(email);
+    if (emailError != null) {
+      return ProfileActionResult.error(emailError);
+    }
+
+    final phoneError = InputValidators.validateSudanPhoneNumber(phone);
+    if (phoneError != null) {
+      return ProfileActionResult.error(phoneError);
+    }
+
     try {
       await _repository.updateProfile(
         fullName: fullName,
@@ -81,10 +92,9 @@ class ProfileController {
       );
 
       if (password.trim().isNotEmpty) {
-        if (password.trim().length < 6) {
-          return ProfileActionResult.error(
-            'Password should be at least 6 characters.',
-          );
+        final passwordError = InputValidators.validateStrongPassword(password);
+        if (passwordError != null) {
+          return ProfileActionResult.error(passwordError);
         }
         await _repository.updatePassword(password.trim());
       }

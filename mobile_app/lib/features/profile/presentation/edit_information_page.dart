@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:aman/login_page.dart';
 
 import '../../../core/app_session.dart';
@@ -225,10 +226,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                                   const SizedBox(height: 12),
                                   const _InputLabel('Phone Number'),
                                   _InputField(
-                                    hint: 'Enter Your Phone Number',
+                                    hint: '+249XXXXXXXXX',
                                     icon: Icons.phone,
                                     controller: _phoneController,
                                     keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                        RegExp(r'[0-9+]'),
+                                      ),
+                                      LengthLimitingTextInputFormatter(13),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -344,6 +351,7 @@ class _InputField extends StatelessWidget {
     required this.controller,
     this.obscure = false,
     this.keyboardType,
+    this.inputFormatters,
   });
 
   final String hint;
@@ -351,6 +359,7 @@ class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscure;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +367,7 @@ class _InputField extends StatelessWidget {
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         isDense: true,
         filled: true,

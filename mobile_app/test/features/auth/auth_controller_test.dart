@@ -94,6 +94,80 @@ void main() {
       expect(result.errorMessage, 'Please fill all fields.');
     });
 
+    test('rejects invalid email during registration', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.register(
+        fullName: 'Admin User',
+        email: 'not-an-email',
+        username: 'admin',
+        password: 'Strong1!',
+        phone: '+249123456789',
+        idNumber: '12345678901',
+        role: 'owner',
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorMessage, 'Please enter a valid email address.');
+    });
+
+    test('rejects weak password during registration', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.register(
+        fullName: 'Admin User',
+        email: 'admin@aman.com',
+        username: 'admin',
+        password: 'weakpass',
+        phone: '+249123456789',
+        idNumber: '12345678901',
+        role: 'owner',
+      );
+
+      expect(result.success, isFalse);
+      expect(
+        result.errorMessage,
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+      );
+    });
+
+    test('rejects invalid Sudan phone number during registration', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.register(
+        fullName: 'Admin User',
+        email: 'admin@aman.com',
+        username: 'admin',
+        password: 'Strong1!',
+        phone: '0912345678',
+        idNumber: '12345678901',
+        role: 'owner',
+      );
+
+      expect(result.success, isFalse);
+      expect(
+        result.errorMessage,
+        'Phone number must start with +249 and contain 9 digits after it.',
+      );
+    });
+
+    test('rejects invalid id number during registration', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.register(
+        fullName: 'Admin User',
+        email: 'admin@aman.com',
+        username: 'admin',
+        password: 'Strong1!',
+        phone: '+249123456789',
+        idNumber: '12345',
+        role: 'owner',
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorMessage, 'ID number must be exactly 11 digits.');
+    });
+
     test('returns verification required when session is null', () async {
       final user = _testUser(id: 'user-2', email: 'new@aman.com');
       final repository = FakeAuthRepository(
@@ -106,9 +180,9 @@ void main() {
         fullName: 'New User',
         email: 'NEW@aman.com',
         username: 'NewUser',
-        password: 'secret123',
-        phone: '123456789',
-        idNumber: 'ID-2',
+        password: 'Secret1!',
+        phone: '+249123456789',
+        idNumber: '12345678901',
         role: 'seeker',
       );
 
@@ -138,15 +212,49 @@ void main() {
         fullName: 'Owner User',
         email: 'owner@aman.com',
         username: 'owneruser',
-        password: 'secret123',
-        phone: '123456789',
-        idNumber: 'ID-3',
+        password: 'Secret1!',
+        phone: '+249123456789',
+        idNumber: '12345678901',
         role: 'owner',
       );
 
       expect(result.success, isTrue);
       expect(result.requiresEmailVerification, isFalse);
       expect(result.role, 'owner');
+    });
+  });
+
+  group('AuthController.sendPasswordResetEmail', () {
+    test('rejects empty email', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.sendPasswordResetEmail(email: ' ');
+
+      expect(result.success, isFalse);
+      expect(result.errorMessage, 'Please enter your email.');
+    });
+
+    test('rejects invalid email format', () async {
+      final controller = AuthController(repository: FakeAuthRepository());
+
+      final result = await controller.sendPasswordResetEmail(
+        email: 'not-an-email',
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorMessage, 'Please enter a valid email address.');
+    });
+
+    test('sends normalized email to repository', () async {
+      final repository = FakeAuthRepository();
+      final controller = AuthController(repository: repository);
+
+      final result = await controller.sendPasswordResetEmail(
+        email: ' Reset@Aman.com ',
+      );
+
+      expect(result.success, isTrue);
+      expect(repository.lastResetEmail, 'reset@aman.com');
     });
   });
 }
@@ -159,6 +267,7 @@ class FakeAuthRepository implements AuthRepository {
     this.roleByUserIdResult,
     this.signInException,
     this.signUpException,
+    this.resetException,
   });
 
   final Map<String, dynamic>? findUserResult;
@@ -167,9 +276,11 @@ class FakeAuthRepository implements AuthRepository {
   final String? roleByUserIdResult;
   final AuthException? signInException;
   final Exception? signUpException;
+  final AuthException? resetException;
 
   String? lastSignInEmail;
   String? lastSignInPassword;
+  String? lastResetEmail;
   String? upsertedUserId;
   String? upsertedEmail;
   String? upsertedUsername;
@@ -204,6 +315,12 @@ class FakeAuthRepository implements AuthRepository {
   }) async {
     if (signUpException != null) throw signUpException!;
     return signUpResult ?? AuthResponse();
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    lastResetEmail = email;
+    if (resetException != null) throw resetException!;
   }
 
   @override
