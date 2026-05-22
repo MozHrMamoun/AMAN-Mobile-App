@@ -6,10 +6,17 @@ import 'features/deals/state/deals_list_controller.dart';
 import 'more_service_page.dart';
 import 'owner_home_page.dart';
 
+enum DealsFilter { active, completed }
+
 class MyDealsPage extends StatefulWidget {
-  const MyDealsPage({super.key, this.initialRole});
+  const MyDealsPage({
+    super.key,
+    this.initialRole,
+    this.initialFilter = DealsFilter.active,
+  });
 
   final String? initialRole;
+  final DealsFilter initialFilter;
 
   @override
   State<MyDealsPage> createState() => _MyDealsPageState();
@@ -22,11 +29,13 @@ class _MyDealsPageState extends State<MyDealsPage> {
   String? _errorMessage;
   String _currentRole = 'seeker';
   List<DealListItem> _allItems = const [];
+  late DealsFilter _selectedFilter;
 
   @override
   void initState() {
     super.initState();
     _currentRole = widget.initialRole ?? 'seeker';
+    _selectedFilter = widget.initialFilter;
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -101,6 +110,9 @@ class _MyDealsPageState extends State<MyDealsPage> {
 
     final activeItems = _allItems.where((e) => !e.isCompleted).toList();
     final completedItems = _allItems.where((e) => e.isCompleted).toList();
+    final visibleItems = _selectedFilter == DealsFilter.active
+        ? activeItems
+        : completedItems;
 
     return PopScope(
       canPop: false,
@@ -170,65 +182,38 @@ class _MyDealsPageState extends State<MyDealsPage> {
                               child: ListView(
                                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                                 children: [
-                                  _SectionHeader(
-                                    title: 'Active Deals',
-                                    count: activeItems.length,
+                                  _DealsSegmentedControl(
+                                    selectedFilter: _selectedFilter,
+                                    activeCount: activeItems.length,
+                                    completedCount: completedItems.length,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedFilter = value;
+                                      });
+                                    },
                                   ),
-                                  const SizedBox(height: 10),
-                                  if (activeItems.isEmpty)
-                                    const _EmptyState(
-                                      text: 'No active deals yet.',
-                                    )
-                                  else
-                                    ...activeItems.map(
-                                      (item) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
-                                        child: _DealCard(
-                                          item: item,
-                                          timeLabel:
-                                              'Started ${_formatDate(item.createdAt)} ${_formatTime(item.createdAt)}',
-                                          statusLabel: _currentRole == 'owner'
-                                              ? 'Pending your confirmation'
-                                              : 'Waiting for owner confirmation',
-                                          statusColor: const Color(0xFFD68600),
-                                          onTap: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => DealDetailPage(
-                                                  peerName: item.otherUserName,
-                                                  seekerUserId: item.seekerUserId,
-                                                  ownerUserId: item.ownerUserId,
-                                                  propertyId: item.propertyId,
-                                                  propertySummary: item.propertySummary,
-                                                ),
-                                              ),
-                                            );
-                                            await _load();
-                                          },
-                                        ),
-                                      ),
-                                    ),
                                   const SizedBox(height: 18),
-                                  _SectionHeader(
-                                    title: 'Completed Deals',
-                                    count: completedItems.length,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  if (completedItems.isEmpty)
+                                  if (visibleItems.isEmpty)
                                     const _EmptyState(
-                                      text: 'No completed deals yet.',
+                                      text: 'No deals found for this section.',
                                     )
                                   else
-                                    ...completedItems.map(
+                                    ...visibleItems.map(
                                       (item) => Padding(
                                         padding: const EdgeInsets.only(bottom: 12),
                                         child: _DealCard(
                                           item: item,
-                                          timeLabel:
-                                              'Completed ${_formatDate(item.doneAt)} ${_formatTime(item.doneAt)}',
-                                          statusLabel: 'Completed',
-                                          statusColor: const Color(0xFF2F7D32),
+                                          timeLabel: item.isCompleted
+                                              ? 'Completed ${_formatDate(item.doneAt)} ${_formatTime(item.doneAt)}'
+                                              : 'Started ${_formatDate(item.createdAt)} ${_formatTime(item.createdAt)}',
+                                          statusLabel: item.isCompleted
+                                              ? 'Completed'
+                                              : _currentRole == 'owner'
+                                                  ? 'Pending your confirmation'
+                                                  : 'Waiting for owner confirmation',
+                                          statusColor: item.isCompleted
+                                              ? const Color(0xFF2F7D32)
+                                              : const Color(0xFFD68600),
                                           onTap: () async {
                                             await Navigator.push(
                                               context,
@@ -260,42 +245,113 @@ class _MyDealsPageState extends State<MyDealsPage> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.count});
+class _DealsSegmentedControl extends StatelessWidget {
+  const _DealsSegmentedControl({
+    required this.selectedFilter,
+    required this.activeCount,
+    required this.completedCount,
+    required this.onChanged,
+  });
 
-  final String title;
-  final int count;
+  final DealsFilter selectedFilter;
+  final int activeCount;
+  final int completedCount;
+  final ValueChanged<DealsFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF1F2430),
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD1D4D9)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DealsFilterTab(
+              label: 'Active',
+              count: activeCount,
+              selected: selectedFilter == DealsFilter.active,
+              onTap: () => onChanged(DealsFilter.active),
             ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1C2A4A),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            count.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: 8),
+          Expanded(
+            child: _DealsFilterTab(
+              label: 'Completed',
+              count: completedCount,
+              selected: selectedFilter == DealsFilter.completed,
+              onTap: () => onChanged(DealsFilter.completed),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DealsFilterTab extends StatelessWidget {
+  const _DealsFilterTab({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 38,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1C2A4A) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
         ),
-      ],
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF1F2430),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0x33FFFFFF)
+                    : const Color(0xFF1C2A4A),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -6,6 +6,8 @@ import 'edit_information_page.dart';
 import 'features/owner_home/state/owner_home_controller.dart';
 import 'follow_up_property_page.dart';
 import 'message_page.dart';
+import 'my_deals_page.dart';
+import 'owner_more_page.dart';
 
 class OwnerHomePage extends StatefulWidget {
   const OwnerHomePage({super.key});
@@ -102,7 +104,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const FollowUpPropertyPage()),
+          MaterialPageRoute(builder: (_) => const OwnerMorePage()),
         );
         break;
     }
@@ -163,6 +165,16 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                               child: _StatCard(
                                 label: 'Active Listings',
                                 value: _activeListings.toString(),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const FollowUpPropertyPage(
+                                        initialFilter: ListingFilter.active,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -170,6 +182,17 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                               child: _StatCard(
                                 label: 'Pending Deals',
                                 value: _pendingDeals.toString(),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MyDealsPage(
+                                        initialRole: 'owner',
+                                        initialFilter: DealsFilter.active,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -181,6 +204,16 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                               child: _StatCard(
                                 label: 'Inactive Listings',
                                 value: _inactiveListings.toString(),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const FollowUpPropertyPage(
+                                        initialFilter: ListingFilter.inactive,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -255,13 +288,32 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const FollowUpPropertyPage(),
+                                      builder: (_) => const FollowUpPropertyPage(
+                                        initialFilter: ListingFilter.active,
+                                      ),
                                     ),
                                   );
                                 },
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: _ActionButton(
+                            label: 'My Deals',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MyDealsPage(
+                                    initialRole: 'owner',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -330,50 +382,62 @@ class _TopIconsRow extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    this.onTap,
+  });
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 170,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F3),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E2E5)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            offset: Offset(0, 2),
-            blurRadius: 5,
+        child: Container(
+          height: 170,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F2F3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE0E2E5)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                offset: Offset(0, 2),
+                blurRadius: 5,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8E949F),
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF8E949F),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF1F2430),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF1F2430),
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

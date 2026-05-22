@@ -8,6 +8,7 @@ class OwnerPropertyItem {
     required this.propertyType,
     required this.propertyState,
     required this.propertyCity,
+    required this.status,
     required this.bedrooms,
     required this.bathrooms,
   });
@@ -16,6 +17,7 @@ class OwnerPropertyItem {
   final String propertyType;
   final String propertyState;
   final String propertyCity;
+  final String status;
   final int? bedrooms;
   final int? bathrooms;
 
@@ -37,6 +39,7 @@ class OwnerPropertyItem {
       propertyType: (map['property_type'] as String?) ?? 'Property',
       propertyState: (map['property_state'] as String?) ?? '-',
       propertyCity: (map['property_city'] as String?) ?? '-',
+      status: ((map['status'] as String?) ?? 'active').toLowerCase(),
       bedrooms: parseInt(map['bedrooms']),
       bathrooms: parseInt(map['bathrooms']),
     );

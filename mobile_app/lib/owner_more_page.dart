@@ -1,32 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'core/app_session.dart';
-import 'core/app_theme.dart';
-import 'fair_price_page.dart';
+import 'follow_up_property_page.dart';
 import 'my_deals_page.dart';
-import 'recommendation_page.dart';
-import 'seeker_home_page.dart';
+import 'owner_home_page.dart';
 
-class MoreServicePage extends StatelessWidget {
-  const MoreServicePage({super.key});
-
-  void _openRestrictedPage(
-    BuildContext context, {
-    required Widget page,
-  }) {
-    if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
-      return;
-    }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
+class OwnerMorePage extends StatelessWidget {
+  const OwnerMorePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const primary = AppColors.primary;
-    const page = AppColors.page;
+    const primary = Color(0xFF1C2A4A);
+    const page = Color(0xFFE9EAEC);
 
     return PopScope(
       canPop: false,
@@ -34,7 +18,7 @@ class MoreServicePage extends StatelessWidget {
         if (!didPop) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const SeekerHomePage()),
+            MaterialPageRoute(builder: (_) => const OwnerHomePage()),
           );
         }
       },
@@ -49,7 +33,7 @@ class MoreServicePage extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     const Text(
-                      'More Service',
+                      'More',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -63,7 +47,7 @@ class MoreServicePage extends StatelessWidget {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const SeekerHomePage(),
+                              builder: (_) => const OwnerHomePage(),
                             ),
                           );
                         },
@@ -88,7 +72,7 @@ class MoreServicePage extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
                       const Text(
-                        'Choose a service',
+                        'Owner tools',
                         style: TextStyle(
                           color: Color(0xFF1F2430),
                           fontSize: 20,
@@ -97,7 +81,7 @@ class MoreServicePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Each service now has its own dedicated page to keep the flow cleaner and easier to use.',
+                        'Use dedicated pages for listing management and deal follow-up.',
                         style: TextStyle(
                           color: Color(0xFF6E7583),
                           fontSize: 13.5,
@@ -106,37 +90,36 @@ class MoreServicePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      _ServiceCard(
-                        icon: Icons.query_stats_rounded,
-                        title: 'Fair Price',
+                      _OwnerServiceCard(
+                        icon: Icons.home_work_outlined,
+                        title: 'Manage Listings',
                         description:
-                            'Check the monthly average property price based on selected filters.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const FairPricePage(),
-                        ),
+                            'Review your active and inactive listings and update or delete them.',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FollowUpPropertyPage(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 14),
-                      _ServiceCard(
-                        icon: Icons.lightbulb_outline_rounded,
-                        title: 'Recommendation',
-                        description:
-                            'Save the exact property details you want when search does not find a match.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const RecommendationPage(),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _ServiceCard(
+                      _OwnerServiceCard(
                         icon: Icons.handshake_outlined,
                         title: 'My Deals',
                         description:
-                            'Track active and completed deals in one dedicated place.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const MyDealsPage(initialRole: 'seeker'),
-                        ),
+                            'Review deal requests, completed deals, and open each one separately.',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MyDealsPage(
+                                initialRole: 'owner',
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -150,8 +133,8 @@ class MoreServicePage extends StatelessWidget {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
+class _OwnerServiceCard extends StatelessWidget {
+  const _OwnerServiceCard({
     required this.icon,
     required this.title,
     required this.description,

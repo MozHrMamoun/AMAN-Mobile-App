@@ -4,8 +4,15 @@ import 'features/properties/state/follow_up_properties_controller.dart';
 import 'owner_home_page.dart';
 import 'update_property_page.dart';
 
+enum ListingFilter { active, inactive }
+
 class FollowUpPropertyPage extends StatefulWidget {
-  const FollowUpPropertyPage({super.key});
+  const FollowUpPropertyPage({
+    super.key,
+    this.initialFilter = ListingFilter.active,
+  });
+
+  final ListingFilter initialFilter;
 
   @override
   State<FollowUpPropertyPage> createState() => _FollowUpPropertyPageState();
@@ -15,10 +22,12 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
   final FollowUpPropertiesController _controller = FollowUpPropertiesController();
   late Future<FollowUpPropertiesResult> _future;
   bool _isDeleting = false;
+  late ListingFilter _selectedFilter;
 
   @override
   void initState() {
     super.initState();
+    _selectedFilter = widget.initialFilter;
     _future = _controller.loadOwnerProperties();
   }
 
@@ -175,7 +184,14 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                       );
                     }
 
-                    if (result.items.isEmpty) {
+                    final filteredItems = result.items.where((item) {
+                      if (_selectedFilter == ListingFilter.active) {
+                        return item.status == 'active';
+                      }
+                      return item.status != 'active';
+                    }).toList();
+
+                    if (filteredItems.isEmpty) {
                       return const Center(
                         child: Text(
                           'No properties found.',
@@ -190,28 +206,43 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
 
                     return RefreshIndicator(
                       onRefresh: _refresh,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
-                        itemCount: result.items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 24),
-                        itemBuilder: (context, index) {
-                          final item = result.items[index];
-                          return _FollowUpCard(
-                            item: item,
-                            isDeleting: _isDeleting,
-                            onUpdate: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      UpdatePropertyPage(propertyId: item.propertyId),
-                                ),
-                              );
-                              await _refresh();
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        children: [
+                          _ListingSegmentedControl(
+                            selectedFilter: _selectedFilter,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedFilter = value;
+                              });
                             },
-                            onDelete: () => _deleteProperty(item.propertyId),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 20),
+                          ...List.generate(filteredItems.length, (index) {
+                            final item = filteredItems[index];
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == filteredItems.length - 1 ? 0 : 24,
+                              ),
+                              child: _FollowUpCard(
+                                item: item,
+                                isDeleting: _isDeleting,
+                                onUpdate: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => UpdatePropertyPage(
+                                        propertyId: item.propertyId,
+                                      ),
+                                    ),
+                                  );
+                                  await _refresh();
+                                },
+                                onDelete: () => _deleteProperty(item.propertyId),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
                     );
                   },
@@ -219,6 +250,83 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ListingSegmentedControl extends StatelessWidget {
+  const _ListingSegmentedControl({
+    required this.selectedFilter,
+    required this.onChanged,
+  });
+
+  final ListingFilter selectedFilter;
+  final ValueChanged<ListingFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD1D4D9)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ListingFilterTab(
+              label: 'Active',
+              selected: selectedFilter == ListingFilter.active,
+              onTap: () => onChanged(ListingFilter.active),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ListingFilterTab(
+              label: 'Inactive',
+              selected: selectedFilter == ListingFilter.inactive,
+              onTap: () => onChanged(ListingFilter.inactive),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListingFilterTab extends StatelessWidget {
+  const _ListingFilterTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1C2A4A) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : const Color(0xFF1F2430),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

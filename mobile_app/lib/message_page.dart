@@ -4,8 +4,8 @@ import 'add_property_page.dart';
 import 'chat_detail_page.dart';
 import 'core/app_session.dart';
 import 'features/chat/state/chat_list_controller.dart';
-import 'follow_up_property_page.dart';
 import 'owner_home_page.dart';
+import 'owner_more_page.dart';
 import 'more_service_page.dart';
 import 'search_property_page.dart';
 import 'seeker_home_page.dart';
@@ -106,7 +106,7 @@ class _MessagePageState extends State<MessagePage> {
         case 3:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const FollowUpPropertyPage()),
+            MaterialPageRoute(builder: (_) => const OwnerMorePage()),
           );
           break;
       }
