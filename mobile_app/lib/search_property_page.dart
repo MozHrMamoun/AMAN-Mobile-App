@@ -24,6 +24,9 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
   String? _bedrooms;
   final TextEditingController _priceFromController = TextEditingController();
   final TextEditingController _priceToController = TextEditingController();
+  final FocusNode _priceFromFocusNode = FocusNode();
+  bool _hasUserEditedPriceTo = false;
+  bool _isAutoUpdatingPriceTo = false;
 
   final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
   final List<String> _rentTypes = ['Monthly', 'Yearly'];
@@ -31,6 +34,16 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
 
   List<String> get _availableCities =>
       _propertyState == null ? const [] : (CityData.citiesByState[_propertyState] ?? const []);
+
+  @override
+  void initState() {
+    super.initState();
+    _priceFromFocusNode.addListener(() {
+      if (!_priceFromFocusNode.hasFocus) {
+        _applySuggestedPriceToFromCurrentFrom();
+      }
+    });
+  }
 
   void _goToSeekerHome() {
     Navigator.pushReplacement(
@@ -41,28 +54,43 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
 
   @override
   void dispose() {
+    _priceFromFocusNode.dispose();
     _priceFromController.dispose();
     _priceToController.dispose();
     super.dispose();
   }
 
-  void _onPriceToChanged(String value) {
-    final String fromText = _priceFromController.text;
-    if (fromText.isEmpty || value.isEmpty) {
+  int _buildSuggestedPriceTo(int from) {
+    final suggested = (from * 1.5).round();
+    return suggested > from ? suggested : from + 1;
+  }
+
+  void _applySuggestedPriceToFromCurrentFrom() {
+    if (_hasUserEditedPriceTo) return;
+
+    final value = _priceFromController.text.trim();
+    if (value.isEmpty) return;
+
+    final int? from = int.tryParse(value);
+    if (from == null) return;
+
+    final int? currentTo = int.tryParse(_priceToController.text);
+    if (currentTo != null && currentTo > from) {
       return;
     }
 
-    final int? from = int.tryParse(fromText);
-    final int? to = int.tryParse(value);
-    if (from == null || to == null || to >= from) {
-      return;
-    }
-
-    final String corrected = fromText;
+    final suggested = _buildSuggestedPriceTo(from).toString();
+    _isAutoUpdatingPriceTo = true;
     _priceToController.value = TextEditingValue(
-      text: corrected,
-      selection: TextSelection.collapsed(offset: corrected.length),
+      text: suggested,
+      selection: TextSelection.collapsed(offset: suggested.length),
     );
+    _isAutoUpdatingPriceTo = false;
+  }
+
+  void _onPriceToChanged(String value) {
+    if (_isAutoUpdatingPriceTo) return;
+    _hasUserEditedPriceTo = true;
   }
 
   int? _parseRoomFilter(String? value) {
@@ -290,12 +318,15 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                       child: _TextFieldBox(
                                         controller: _priceFromController,
                                         hint: 'From',
+                                        focusNode: _priceFromFocusNode,
                                         keyboardType: TextInputType.number,
                                         inputFormatters: [
                                           FilteringTextInputFormatter.digitsOnly,
                                         ],
                                         border: border,
                                         fill: inputBg,
+                                        onEditingComplete:
+                                            _applySuggestedPriceToFromCurrentFrom,
                                       ),
                                     ),
                                     const SizedBox(width: 10),
@@ -395,6 +426,20 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                               height: 36,
                               child: ElevatedButton(
                                 onPressed: () {
+                                  final minPrice = _parsePrice(
+                                    _priceFromController.text,
+                                  );
+                                  final rawMaxPrice = _parsePrice(
+                                    _priceToController.text,
+                                  );
+                                  final maxPrice = minPrice != null &&
+                                          rawMaxPrice != null &&
+                                          rawMaxPrice < minPrice
+                                      ? _buildSuggestedPriceTo(
+                                          minPrice.toInt(),
+                                        ).toDouble()
+                                      : rawMaxPrice;
+
                                   final criteria = SearchCriteria(
                                     transactionType: _isBuySelected ? 'buy' : 'rent',
                                     rentType: _isBuySelected
@@ -407,8 +452,8 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                     bathroomsAtLeast: _isAtLeastFilter(_bathrooms),
                                     bedrooms: _parseRoomFilter(_bedrooms),
                                     bedroomsAtLeast: _isAtLeastFilter(_bedrooms),
-                                    minPrice: _parsePrice(_priceFromController.text),
-                                    maxPrice: _parsePrice(_priceToController.text),
+                                    minPrice: minPrice,
+                                    maxPrice: maxPrice,
                                   );
                                   Navigator.push(
                                     context,
@@ -613,7 +658,9 @@ class _TextFieldBox extends StatelessWidget {
     required this.inputFormatters,
     required this.border,
     required this.fill,
+    this.focusNode,
     this.onChanged,
+    this.onEditingComplete,
   });
 
   final TextEditingController controller;
@@ -622,7 +669,9 @@ class _TextFieldBox extends StatelessWidget {
   final List<TextInputFormatter> inputFormatters;
   final Color border;
   final Color fill;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onEditingComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -635,9 +684,11 @@ class _TextFieldBox extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         onChanged: onChanged,
+        onEditingComplete: onEditingComplete,
         decoration: InputDecoration(
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
