@@ -49,6 +49,19 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
     );
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final resultMessage = await showDialog<String>(
+      context: context,
+      builder: (_) => _ForgotPasswordDialog(controller: _authController),
+    );
+
+    if (!mounted || resultMessage == null || resultMessage.isEmpty) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(resultMessage)),
+    );
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -181,6 +194,22 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _isLoading ? null : _showForgotPasswordDialog,
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: Color(0xFFD96486),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,
@@ -263,6 +292,100 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog({required this.controller});
+
+  final AuthController controller;
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  final TextEditingController _emailController = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isSending = true;
+    });
+
+    final result = await widget.controller.sendPasswordResetEmail(
+      email: _emailController.text,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSending = false;
+    });
+
+    Navigator.of(context).pop(
+      result.success
+          ? 'Password reset email sent. Please check your inbox.'
+          : (result.errorMessage ?? 'Failed to send reset email.'),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Forgot Password?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Enter the email linked to your account and we will send you a reset link.',
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              hintText: 'Enter your email',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSending ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSending ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1C2A4A),
+            foregroundColor: Colors.white,
+          ),
+          child: _isSending
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Send'),
+        ),
+      ],
     );
   }
 }
