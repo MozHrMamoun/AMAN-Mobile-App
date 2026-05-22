@@ -245,7 +245,7 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                                   ),
                                   const SizedBox(height: 24),
                                   _LabeledRow(
-                                    label: 'Status',
+                                    label: 'Available',
                                     forceInline: true,
                                     child: Align(
                                       alignment: Alignment.centerRight,
