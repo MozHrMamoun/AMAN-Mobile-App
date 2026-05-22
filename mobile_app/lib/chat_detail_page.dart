@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'features/deals/state/deal_controller.dart';
 import 'features/chat/state/chat_detail_controller.dart';
+import 'features/chat/state/chat_list_controller.dart';
 import 'features/ratings/state/rating_controller.dart';
+import 'property_detail_page.dart';
 
 class ChatDetailPage extends StatefulWidget {
   const ChatDetailPage({
@@ -35,6 +37,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   String? _seekerUserId;
   String? _ownerUserId;
   int? _propertyId;
+  ChatPropertySummary? _propertySummary;
   int? _pendingDealId;
   bool _isDealPending = false;
   bool _isDealCompleted = false;
@@ -99,6 +102,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       _seekerUserId = result.seekerUserId;
       _ownerUserId = result.ownerUserId;
       _propertyId = widget.propertyId ?? result.propertyId;
+      _propertySummary = result.propertySummary;
       _currentUserId = result.currentUserId;
     });
 
@@ -608,6 +612,115 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
+  Widget _buildPropertySummaryCard() {
+    final property = _propertySummary;
+    if (property == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PropertyDetailPage(propertyId: property.propertyId),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDDE0E5)),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 62,
+                    height: 62,
+                    child: property.imageUrl == null || property.imageUrl!.trim().isEmpty
+                        ? Container(
+                            color: const Color(0xFFF2F2F3),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.home_work_outlined,
+                              color: Color(0xFF8E949F),
+                            ),
+                          )
+                        : Image.network(
+                            property.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFF2F2F3),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: Color(0xFF8E949F),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        property.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF1F2430),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        property.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF6E7583),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Bedrooms: ${property.bedrooms ?? '-'}   Bathrooms: ${property.bathrooms ?? '-'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF6E7583),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Color(0xFF1C2A4A),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -668,6 +781,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                   child: Column(
                     children: [
+                      _buildPropertySummaryCard(),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                         child: Align(
