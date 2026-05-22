@@ -310,6 +310,27 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                                         child: Column(
                                           children: [
                                             _DetailRow(
+                                              label: 'Transaction Type',
+                                              value:
+                                                  _item!.transactionType.isEmpty
+                                                  ? '-'
+                                                  : _item!.transactionType[0]
+                                                            .toUpperCase() +
+                                                        _item!.transactionType
+                                                            .substring(1),
+                                            ),
+                                            if (_item!.transactionType == 'rent' &&
+                                                _item!.rentType != null) ...[
+                                              const SizedBox(height: 10),
+                                              _DetailRow(
+                                                label: 'Type of Rent',
+                                                value: _item!.rentType == 'monthly'
+                                                    ? 'Monthly'
+                                                    : 'Yearly',
+                                              ),
+                                            ],
+                                            const SizedBox(height: 10),
+                                            _DetailRow(
                                               label: 'Property Type',
                                               value: _item!.propertyType,
                                             ),

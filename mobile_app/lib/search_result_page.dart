@@ -466,11 +466,16 @@ class _ResultCard extends StatelessWidget {
               const SizedBox(height: 4),
               Expanded(
                 child: Text(
-                  'Bedrooms: ${item.bedrooms ?? '-'}\n'
-                  'Bathrooms: ${item.bathrooms ?? '-'}\n'
-                  'Owner: ${item.ownerName}\n'
-                  'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
-                  maxLines: 5,
+                  [
+                    'Transaction: ${item.transactionType == 'rent' ? 'Rent' : 'Buy'}',
+                    if (item.transactionType == 'rent' && item.rentType != null)
+                      'Type of Rent: ${item.rentType == 'monthly' ? 'Monthly' : 'Yearly'}',
+                    'Bedrooms: ${item.bedrooms ?? '-'}',
+                    'Bathrooms: ${item.bathrooms ?? '-'}',
+                    'Owner: ${item.ownerName}',
+                    'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
+                  ].join('\n'),
+                  maxLines: 6,
                   overflow: TextOverflow.clip,
                   style: const TextStyle(
                     color: Color(0xFF8E949F),

@@ -22,6 +22,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _isBuySelected = true;
   bool _isSaving = false;
   String? _propertyType;
+  String? _rentType;
   String? _propertyState;
   String? _propertyCity;
   String? _bathrooms;
@@ -37,6 +38,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final AddPropertyController _addPropertyController = AddPropertyController();
 
   final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
+  final List<String> _rentTypes = ['Monthly', 'Yearly'];
   final List<String> _numbers = ['1', '2', '3', '4', '5+'];
 
   List<String> get _availableCities =>
@@ -72,6 +74,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       setState(() {
         _isBuySelected = (data['isBuy'] as bool?) ?? true;
         _propertyType = data['propertyType'] as String?;
+        _rentType = data['rentType'] as String?;
         _propertyState = data['propertyState'] as String?;
         _propertyCity = data['propertyCity'] as String?;
         _bedrooms = data['bedrooms'] as String?;
@@ -99,6 +102,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     final data = <String, dynamic>{
       'isBuy': _isBuySelected,
       'propertyType': _propertyType,
+      'rentType': _rentType,
       'propertyState': _propertyState,
       'propertyCity': _propertyCity,
       'bedrooms': _bedrooms,
@@ -169,6 +173,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
     final result = await _addPropertyController.submit(
       isBuy: _isBuySelected,
+      rentType: _rentType,
       propertyType: _propertyType,
       propertyState: _propertyState,
       propertyCity: _propertyCity,
@@ -340,7 +345,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                   child: _DealTypeTab(
                                     label: 'Buy',
                                     selected: _isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = true),
+                                    onTap: () {
+                                      setState(() {
+                                        _isBuySelected = true;
+                                        _rentType = null;
+                                      });
+                                      _saveDraft();
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -348,11 +359,31 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                   child: _DealTypeTab(
                                     label: 'Rent',
                                     selected: !_isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = false),
+                                    onTap: () {
+                                      setState(() => _isBuySelected = false);
+                                      _saveDraft();
+                                    },
                                   ),
                                 ),
                               ],
                             ),
+                            if (!_isBuySelected) ...[
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Type of Rent',
+                                child: _SelectField(
+                                  value: _rentType,
+                                  hint: 'Place Holder...',
+                                  items: _rentTypes,
+                                  border: border,
+                                  hintColor: hint,
+                                  onChanged: (v) {
+                                    setState(() => _rentType = v);
+                                    _saveDraft();
+                                  },
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 18),
                             _FieldRow(
                               label: 'Property Type',

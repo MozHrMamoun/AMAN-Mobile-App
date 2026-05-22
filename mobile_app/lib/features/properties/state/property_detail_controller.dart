@@ -6,6 +6,8 @@ class PropertyDetailItem {
   const PropertyDetailItem({
     required this.propertyId,
     required this.ownerUserId,
+    required this.transactionType,
+    required this.rentType,
     required this.propertyType,
     required this.propertyState,
     required this.propertyCity,
@@ -22,6 +24,8 @@ class PropertyDetailItem {
 
   final int propertyId;
   final String ownerUserId;
+  final String transactionType;
+  final String? rentType;
   final String propertyType;
   final String propertyState;
   final String propertyCity;
@@ -53,6 +57,10 @@ class PropertyDetailItem {
     return PropertyDetailItem(
       propertyId: propertyId,
       ownerUserId: (row['owner_id']?.toString() ?? ''),
+      transactionType: parseText(row['transaction_type']).toLowerCase(),
+      rentType: (row['rent_type']?.toString().trim().isEmpty ?? true)
+          ? null
+          : row['rent_type'].toString().toLowerCase(),
       propertyType: parseText(row['property_type']),
       propertyState: parseText(row['property_state']),
       propertyCity: parseText(row['property_city']),

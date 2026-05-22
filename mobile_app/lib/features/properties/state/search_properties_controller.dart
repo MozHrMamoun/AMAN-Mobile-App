@@ -5,6 +5,7 @@ import '../data/property_repository.dart';
 class SearchCriteria {
   const SearchCriteria({
     required this.transactionType,
+    this.rentType,
     this.propertyType,
     this.propertyState,
     this.propertyCity,
@@ -17,6 +18,7 @@ class SearchCriteria {
   });
 
   final String transactionType;
+  final String? rentType;
   final String? propertyType;
   final String? propertyState;
   final String? propertyCity;
@@ -31,6 +33,8 @@ class SearchCriteria {
 class SearchPropertyItem {
   const SearchPropertyItem({
     required this.propertyId,
+    required this.transactionType,
+    required this.rentType,
     required this.propertyType,
     required this.bedrooms,
     required this.bathrooms,
@@ -41,6 +45,8 @@ class SearchPropertyItem {
   });
 
   final int propertyId;
+  final String transactionType;
+  final String? rentType;
   final String propertyType;
   final int? bedrooms;
   final int? bathrooms;
@@ -61,6 +67,8 @@ class SearchPropertyItem {
 
     return SearchPropertyItem(
       propertyId: propertyId,
+      transactionType: ((row['transaction_type'] as String?) ?? '').toLowerCase(),
+      rentType: (row['rent_type'] as String?)?.toLowerCase(),
       propertyType: (row['property_type'] as String?) ?? 'Property',
       bedrooms: parseInt(row['bedrooms']),
       bathrooms: parseInt(row['bathrooms']),
@@ -106,6 +114,7 @@ class SearchPropertiesController {
     try {
       final rows = await _repository.searchProperties(
         transactionType: criteria.transactionType,
+        rentType: criteria.rentType,
         propertyType: criteria.propertyType,
         propertyState: criteria.propertyState,
         propertyCity: criteria.propertyCity,

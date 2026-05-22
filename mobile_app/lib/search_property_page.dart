@@ -17,6 +17,7 @@ class SearchPropertyPage extends StatefulWidget {
 class _SearchPropertyPageState extends State<SearchPropertyPage> {
   bool _isBuySelected = true;
   String? _propertyType;
+  String? _rentType;
   String? _propertyState;
   String? _propertyCity;
   String? _bathrooms;
@@ -24,7 +25,8 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
   final TextEditingController _priceFromController = TextEditingController();
   final TextEditingController _priceToController = TextEditingController();
 
-  final List<String> _propertyTypes = ['Apartment', 'House'];
+  final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
+  final List<String> _rentTypes = ['Monthly', 'Yearly'];
   final List<String> _roomCounts = ['1', '2', '3', '4', '5+'];
 
   List<String> get _availableCities =>
@@ -159,7 +161,10 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                   child: _DealTypeTab(
                                     label: 'Buy',
                                     selected: _isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = true),
+                                    onTap: () => setState(() {
+                                      _isBuySelected = true;
+                                      _rentType = null;
+                                    }),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -172,6 +177,24 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                 ),
                               ],
                             ),
+                            if (!_isBuySelected) ...[
+                              const SizedBox(height: 14),
+                              _LabeledRow(
+                                label: 'Type of Rent',
+                                child: _SelectBox(
+                                  hint: 'Place Holder...',
+                                  value: _rentType,
+                                  items: _rentTypes,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rentType = value;
+                                    });
+                                  },
+                                  border: border,
+                                  fill: inputBg,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 18),
                             _LabeledRow(
                               label: 'Property Type',
@@ -374,6 +397,9 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                 onPressed: () {
                                   final criteria = SearchCriteria(
                                     transactionType: _isBuySelected ? 'buy' : 'rent',
+                                    rentType: _isBuySelected
+                                        ? null
+                                        : _rentType?.toLowerCase(),
                                     propertyType: _propertyType,
                                     propertyState: _propertyState,
                                     propertyCity: _propertyCity,

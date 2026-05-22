@@ -71,6 +71,7 @@ class PropertyRepository {
 
   Future<List<Map<String, dynamic>>> searchProperties({
     String? transactionType,
+    String? rentType,
     String? propertyType,
     String? propertyState,
     String? propertyCity,
@@ -83,22 +84,27 @@ class PropertyRepository {
     int limit = 20,
     int offset = 0,
   }) async {
+    final params = <String, dynamic>{
+      'p_transaction_type': transactionType,
+      'p_property_type': propertyType,
+      'p_property_state': propertyState,
+      'p_property_city': propertyCity,
+      'p_bedrooms': bedrooms,
+      'p_bedrooms_at_least': bedroomsAtLeast,
+      'p_bathrooms': bathrooms,
+      'p_bathrooms_at_least': bathroomsAtLeast,
+      'p_min_price': minPrice,
+      'p_max_price': maxPrice,
+      'p_limit': limit,
+      'p_offset': offset,
+    };
+    if (rentType != null && rentType.trim().isNotEmpty) {
+      params['p_rent_type'] = rentType;
+    }
+
     final rows = await _client.rpc(
       'search_properties_rpc',
-      params: {
-        'p_transaction_type': transactionType,
-        'p_property_type': propertyType,
-        'p_property_state': propertyState,
-        'p_property_city': propertyCity,
-        'p_bedrooms': bedrooms,
-        'p_bedrooms_at_least': bedroomsAtLeast,
-        'p_bathrooms': bathrooms,
-        'p_bathrooms_at_least': bathroomsAtLeast,
-        'p_min_price': minPrice,
-        'p_max_price': maxPrice,
-        'p_limit': limit,
-        'p_offset': offset,
-      },
+      params: params,
     );
 
     return (rows as List)
@@ -110,7 +116,7 @@ class PropertyRepository {
     final row = await _client
         .from('properties')
         .select(
-          'property_id, owner_id, property_type, property_state, property_city, bedrooms, bathrooms, price, area_sqm, location, description, status',
+          'property_id, owner_id, transaction_type, rent_type, property_type, property_state, property_city, bedrooms, bathrooms, price, area_sqm, location, description, status',
         )
         .eq('property_id', propertyId)
         .maybeSingle();
@@ -232,6 +238,7 @@ class PropertyRepository {
   Future<int> insertProperty({
     required String ownerId,
     required String transactionType,
+    required String? rentType,
     required String propertyType,
     required String propertyState,
     required String propertyCity,
@@ -249,6 +256,7 @@ class PropertyRepository {
           'owner_id': ownerId,
           'owner_role': 'owner',
           'transaction_type': transactionType,
+          'rent_type': rentType,
           'property_type': propertyType,
           'property_state': propertyState,
           'property_city': propertyCity,

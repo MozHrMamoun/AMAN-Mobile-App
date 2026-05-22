@@ -35,6 +35,7 @@ class AddPropertyController {
 
   Future<AddPropertyResult> submit({
     required bool isBuy,
+    required String? rentType,
     required String? propertyType,
     required String? propertyState,
     required String? propertyCity,
@@ -54,6 +55,10 @@ class AddPropertyController {
 
     if (propertyType == null || propertyState == null || propertyCity == null) {
       return AddPropertyResult.error('Please complete property type/state/city.');
+    }
+
+    if (!isBuy && rentType == null) {
+      return AddPropertyResult.error('Type of rent is required for rent properties.');
     }
 
     if (bedrooms == null || bathrooms == null) {
@@ -98,6 +103,7 @@ class AddPropertyController {
       final propertyId = await _repository.insertProperty(
         ownerId: userId,
         transactionType: isBuy ? 'buy' : 'rent',
+        rentType: isBuy ? null : rentType?.toLowerCase(),
         propertyType: propertyType,
         propertyState: propertyState,
         propertyCity: propertyCity,
