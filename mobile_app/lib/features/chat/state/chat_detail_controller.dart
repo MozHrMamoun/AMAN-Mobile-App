@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/chat_repository.dart';
+import 'chat_list_controller.dart';
 
 class ChatMessageItem {
   const ChatMessageItem({
@@ -28,6 +29,7 @@ class ChatDetailResult {
     this.seekerUserId,
     this.ownerUserId,
     this.propertyId,
+    this.propertySummary,
   });
 
   final bool success;
@@ -38,6 +40,7 @@ class ChatDetailResult {
   final String? seekerUserId;
   final String? ownerUserId;
   final int? propertyId;
+  final ChatPropertySummary? propertySummary;
 
   factory ChatDetailResult.success({
     required List<ChatMessageItem> messages,
@@ -46,6 +49,7 @@ class ChatDetailResult {
     required String? seekerUserId,
     required String? ownerUserId,
     required int? propertyId,
+    required ChatPropertySummary? propertySummary,
   }) {
     return ChatDetailResult._(
       success: true,
@@ -55,6 +59,7 @@ class ChatDetailResult {
       seekerUserId: seekerUserId,
       ownerUserId: ownerUserId,
       propertyId: propertyId,
+      propertySummary: propertySummary,
     );
   }
 
@@ -124,6 +129,14 @@ class ChatDetailController {
         limit: limit,
         offset: offset,
       );
+      final propertySummaryRows = propertyId == null
+          ? const <int, Map<String, dynamic>>{}
+          : await _repository.fetchPropertySummariesByIds([propertyId]);
+      final propertySummary = propertyId == null
+          ? null
+          : propertySummaryRows[propertyId] == null
+              ? null
+              : ChatPropertySummary.fromMap(propertySummaryRows[propertyId]!);
       final messages = rows.map((row) {
         final idRaw = row['message_id'];
         final messageId = idRaw is int
@@ -163,6 +176,7 @@ class ChatDetailController {
         seekerUserId: seekerId,
         ownerUserId: ownerId,
         propertyId: propertyId,
+        propertySummary: propertySummary,
       );
     } on PostgrestException catch (e) {
       return ChatDetailResult.error(

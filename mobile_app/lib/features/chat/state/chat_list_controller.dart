@@ -2,6 +2,60 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/chat_repository.dart';
 
+class ChatPropertySummary {
+  const ChatPropertySummary({
+    required this.propertyId,
+    required this.propertyType,
+    required this.propertyState,
+    required this.propertyCity,
+    required this.bedrooms,
+    required this.bathrooms,
+    required this.price,
+    this.imageUrl,
+  });
+
+  final int propertyId;
+  final String propertyType;
+  final String propertyState;
+  final String propertyCity;
+  final int? bedrooms;
+  final int? bathrooms;
+  final String price;
+  final String? imageUrl;
+
+  String get title => propertyType.trim().isEmpty ? 'Property' : propertyType;
+  String get location => '$propertyState / $propertyCity';
+
+  factory ChatPropertySummary.fromMap(Map<String, dynamic> map) {
+    int? parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '');
+    }
+
+    String parseText(dynamic value, {String fallback = '-'}) {
+      final text = value?.toString().trim() ?? '';
+      return text.isEmpty ? fallback : text;
+    }
+
+    final propertyIdRaw = map['property_id'];
+    final propertyId = propertyIdRaw is int
+        ? propertyIdRaw
+        : (propertyIdRaw is num ? propertyIdRaw.toInt() : 0);
+
+    return ChatPropertySummary(
+      propertyId: propertyId,
+      propertyType: parseText(map['property_type'], fallback: 'Property'),
+      propertyState: parseText(map['property_state']),
+      propertyCity: parseText(map['property_city']),
+      bedrooms: parseInt(map['bedrooms']),
+      bathrooms: parseInt(map['bathrooms']),
+      price: parseText(map['price']),
+      imageUrl: map['image_url']?.toString(),
+    );
+  }
+}
+
 class ChatThreadItem {
   const ChatThreadItem({
     required this.chatId,
@@ -11,6 +65,7 @@ class ChatThreadItem {
     required this.lastMessageAt,
     required this.unreadCount,
     required this.propertyId,
+    this.propertySummary,
   });
 
   final int chatId;
@@ -20,6 +75,7 @@ class ChatThreadItem {
   final DateTime? lastMessageAt;
   final int unreadCount;
   final int? propertyId;
+  final ChatPropertySummary? propertySummary;
 }
 
 class ChatListResult {
@@ -135,9 +191,21 @@ class ChatListController {
       }
 
       final chatIds = chatRows.map((row) => parseInt(row['chat_id'])).toList();
+      final propertyIds = chatRows
+          .map((row) => row['property_id'])
+          .whereType<num>()
+          .map((value) => value.toInt())
+          .toSet()
+          .toList();
       final unreadChatIds = await _repository.fetchUnreadMessageChatIds(
         currentUserId: currentUserId,
         chatIds: chatIds,
+      );
+      final propertySummaryRows = await _repository.fetchPropertySummariesByIds(
+        propertyIds,
+      );
+      final propertySummaries = propertySummaryRows.map(
+        (key, value) => MapEntry(key, ChatPropertySummary.fromMap(value)),
       );
       final unreadCounts = <int, int>{};
       for (final chatId in unreadChatIds) {
@@ -166,6 +234,8 @@ class ChatListController {
           lastMessageAt: parseDate(row['last_message_at']),
           unreadCount: unreadCounts[chatId] ?? 0,
           propertyId: propertyId,
+          propertySummary:
+              propertyId == null ? null : propertySummaries[propertyId],
         );
       }).toList();
 

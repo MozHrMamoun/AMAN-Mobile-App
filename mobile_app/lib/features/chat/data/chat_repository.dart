@@ -8,6 +8,58 @@ class ChatRepository {
 
   final SupabaseClient _client;
 
+  Future<Map<int, Map<String, dynamic>>> fetchPropertySummariesByIds(
+    List<int> propertyIds,
+  ) async {
+    if (propertyIds.isEmpty) return const {};
+
+    final propertyRows = await _client
+        .from('properties')
+        .select(
+          'property_id, property_type, property_state, property_city, bedrooms, bathrooms, price, owner_id',
+        )
+        .inFilter('property_id', propertyIds);
+
+    final imageRows = await _client
+        .from('property_images')
+        .select('property_id, image_id, image_url')
+        .inFilter('property_id', propertyIds)
+        .order('image_id', ascending: true);
+
+    final firstImageByPropertyId = <int, String>{};
+    for (final raw in (imageRows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final propertyIdRaw = row['property_id'];
+      final propertyId = propertyIdRaw is int
+          ? propertyIdRaw
+          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null || firstImageByPropertyId.containsKey(propertyId)) {
+        continue;
+      }
+      final imageUrl = row['image_url']?.toString();
+      if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+        firstImageByPropertyId[propertyId] = imageUrl;
+      }
+    }
+
+    final result = <int, Map<String, dynamic>>{};
+    for (final raw in (propertyRows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final propertyIdRaw = row['property_id'];
+      final propertyId = propertyIdRaw is int
+          ? propertyIdRaw
+          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null) continue;
+
+      result[propertyId] = {
+        ...row,
+        'image_url': firstImageByPropertyId[propertyId],
+      };
+    }
+
+    return result;
+  }
+
   String? get currentUserId => _client.auth.currentUser?.id;
 
   Future<Map<String, dynamic>?> fetchCurrentUserProfile() async {
