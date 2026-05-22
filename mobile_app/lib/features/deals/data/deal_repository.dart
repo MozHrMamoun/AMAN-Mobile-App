@@ -104,4 +104,92 @@ class DealRepository {
         .update({'done_at': DateTime.now().toIso8601String()})
         .eq('deal_id', dealId);
   }
+
+  Future<List<Map<String, dynamic>>> fetchDealsForUser({
+    required String role,
+  }) async {
+    final userId = currentUserId;
+    if (userId == null) return const [];
+
+    final query = _client
+        .from('deals')
+        .select('deal_id, seeker_id, owner_id, property_id, done_at, created_at')
+        .eq(role == 'owner' ? 'owner_id' : 'seeker_id', userId)
+        .order('created_at', ascending: false);
+
+    final rows = await query;
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  Future<Map<String, String>> fetchUserNamesByIds(List<String> userIds) async {
+    if (userIds.isEmpty) return const {};
+
+    final rows = await _client
+        .from('user')
+        .select('user_id, full_name')
+        .inFilter('user_id', userIds);
+
+    final result = <String, String>{};
+    for (final raw in (rows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final userId = row['user_id']?.toString();
+      if (userId == null || userId.isEmpty) continue;
+      result[userId] = (row['full_name'] as String?) ?? 'Unknown';
+    }
+    return result;
+  }
+
+  Future<Map<int, Map<String, dynamic>>> fetchPropertySummariesByIds(
+    List<int> propertyIds,
+  ) async {
+    if (propertyIds.isEmpty) return const {};
+
+    final propertyRows = await _client
+        .from('properties')
+        .select(
+          'property_id, property_type, property_state, property_city, bedrooms, bathrooms, price',
+        )
+        .inFilter('property_id', propertyIds);
+
+    final imageRows = await _client
+        .from('property_images')
+        .select('property_id, image_id, image_url')
+        .inFilter('property_id', propertyIds)
+        .order('image_id', ascending: true);
+
+    final firstImageByPropertyId = <int, String>{};
+    for (final raw in (imageRows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final propertyIdRaw = row['property_id'];
+      final propertyId = propertyIdRaw is int
+          ? propertyIdRaw
+          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null || firstImageByPropertyId.containsKey(propertyId)) {
+        continue;
+      }
+      final imageUrl = row['image_url']?.toString();
+      if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+        firstImageByPropertyId[propertyId] = imageUrl;
+      }
+    }
+
+    final result = <int, Map<String, dynamic>>{};
+    for (final raw in (propertyRows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final propertyIdRaw = row['property_id'];
+      final propertyId = propertyIdRaw is int
+          ? propertyIdRaw
+          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null) continue;
+
+      result[propertyId] = {
+        ...row,
+        'image_url': firstImageByPropertyId[propertyId],
+      };
+    }
+
+    return result;
+  }
 }
