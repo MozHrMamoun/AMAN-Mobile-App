@@ -13,7 +13,6 @@ void main() {
       final result = await controller.updateProfile(
         fullName: 'User Name',
         email: 'invalid-email',
-        username: 'username',
         phone: '+249123456789',
         password: '',
       );
@@ -30,7 +29,6 @@ void main() {
       final result = await controller.updateProfile(
         fullName: 'User Name',
         email: 'user@aman.com',
-        username: 'username',
         phone: '0912345678',
         password: '',
       );
@@ -50,7 +48,6 @@ void main() {
       final result = await controller.updateProfile(
         fullName: 'User Name',
         email: 'user@aman.com',
-        username: 'username',
         phone: '+249123456789',
         password: 'weakpass',
       );
@@ -69,7 +66,6 @@ void main() {
       final result = await controller.updateProfile(
         fullName: 'User Name',
         email: 'user@aman.com',
-        username: 'username',
         phone: '+249123456789',
         password: 'Strong1!',
       );
@@ -105,7 +101,6 @@ class FakeProfileRepository implements ProfileRepository {
   Future<void> updateProfile({
     required String fullName,
     required String email,
-    required String username,
     required String phone,
   }) async {
     updatedProfile = true;

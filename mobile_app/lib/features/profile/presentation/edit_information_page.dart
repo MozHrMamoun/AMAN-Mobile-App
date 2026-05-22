@@ -15,7 +15,6 @@ class ProfileEditPage extends StatefulWidget {
 class _ProfileEditPageState extends State<ProfileEditPage> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
 
@@ -49,7 +48,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     if (profile != null) {
       _fullNameController.text = profile.fullName;
       _emailController.text = profile.email;
-      _usernameController.text = profile.username;
       _phoneController.text = profile.phone;
     }
 
@@ -66,7 +64,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final result = await _controller.updateProfile(
       fullName: _fullNameController.text,
       email: _emailController.text,
-      username: _usernameController.text,
       phone: _phoneController.text,
       password: _passwordController.text,
     );
@@ -118,7 +115,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _usernameController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -207,13 +203,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                                     icon: Icons.email,
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const _InputLabel('User Name'),
-                                  _InputField(
-                                    hint: 'Enter Your User Name',
-                                    icon: Icons.person,
-                                    controller: _usernameController,
                                   ),
                                   const SizedBox(height: 12),
                                   const _InputLabel('Password'),

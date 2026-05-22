@@ -24,7 +24,6 @@ class ProfileRepository {
   Future<void> updateProfile({
     required String fullName,
     required String email,
-    required String username,
     required String phone,
   }) async {
     final user = currentUser;
@@ -33,7 +32,6 @@ class ProfileRepository {
     }
 
     final normalizedEmail = email.trim().toLowerCase();
-    final normalizedUsername = username.trim().toLowerCase();
 
     await _client.auth.updateUser(
       UserAttributes(email: normalizedEmail),
@@ -42,7 +40,6 @@ class ProfileRepository {
     await _client.from('user').update({
       'full_name': fullName.trim(),
       'email': normalizedEmail,
-      'username': normalizedUsername,
       'phone': phone.trim(),
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('user_id', user.id);

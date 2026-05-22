@@ -62,13 +62,11 @@ class ProfileController {
   Future<ProfileActionResult> updateProfile({
     required String fullName,
     required String email,
-    required String username,
     required String phone,
     required String password,
   }) async {
     if (fullName.trim().isEmpty ||
         email.trim().isEmpty ||
-        username.trim().isEmpty ||
         phone.trim().isEmpty) {
       return ProfileActionResult.error('Please fill all required fields.');
     }
@@ -87,7 +85,6 @@ class ProfileController {
       await _repository.updateProfile(
         fullName: fullName,
         email: email,
-        username: username,
         phone: phone,
       );
 
