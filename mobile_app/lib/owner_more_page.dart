@@ -80,15 +80,6 @@ class OwnerMorePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Use dedicated pages for listing management and deal follow-up.',
-                        style: TextStyle(
-                          color: Color(0xFF6E7583),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
-                        ),
-                      ),
                       const SizedBox(height: 22),
                       _OwnerServiceCard(
                         icon: Icons.home_work_outlined,
@@ -109,7 +100,7 @@ class OwnerMorePage extends StatelessWidget {
                         icon: Icons.handshake_outlined,
                         title: 'My Deals',
                         description:
-                            'Review deal requests, completed deals, and open each one separately.',
+                            'Review deal requests, completed deals.',
                         onTap: () {
                           Navigator.push(
                             context,

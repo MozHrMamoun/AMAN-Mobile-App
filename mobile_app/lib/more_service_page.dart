@@ -96,15 +96,6 @@ class MoreServicePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Each service now has its own dedicated page to keep the flow cleaner and easier to use.',
-                        style: TextStyle(
-                          color: Color(0xFF6E7583),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
-                        ),
-                      ),
                       const SizedBox(height: 22),
                       _ServiceCard(
                         icon: Icons.query_stats_rounded,
@@ -132,7 +123,7 @@ class MoreServicePage extends StatelessWidget {
                         icon: Icons.handshake_outlined,
                         title: 'My Deals',
                         description:
-                            'Track active and completed deals in one dedicated place.',
+                            'Track active and completed deals.',
                         onTap: () => _openRestrictedPage(
                           context,
                           page: const MyDealsPage(initialRole: 'seeker'),
