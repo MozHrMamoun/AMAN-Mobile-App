@@ -20,6 +20,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
   bool _isLoading = true;
   String? _errorMessage;
   int _activeListings = 0;
+  int _inactiveListings = 0;
   int _pendingDeals = 0;
   int _unreadMessages = 0;
   List<OwnerActivityItem> _activities = const [];
@@ -56,6 +57,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     setState(() {
       _isLoading = false;
       _activeListings = result.activeListings;
+      _inactiveListings = result.inactiveListings;
       _pendingDeals = result.pendingDeals;
       _unreadMessages = result.unreadMessages;
       _activities = result.activities;
@@ -168,6 +170,17 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                               child: _StatCard(
                                 label: 'Pending Deals',
                                 value: _pendingDeals.toString(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                label: 'Inactive Listings',
+                                value: _inactiveListings.toString(),
                               ),
                             ),
                             const SizedBox(width: 12),
