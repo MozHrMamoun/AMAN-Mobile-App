@@ -5,15 +5,12 @@ import '../../../core/supabase_client_provider.dart';
 
 class PropertyRepository {
   PropertyRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   final SupabaseClient _client;
   String? get currentUserId => _client.auth.currentUser?.id;
 
-  String? _extractPathFromUrl({
-    required String url,
-    required String bucket,
-  }) {
+  String? _extractPathFromUrl({required String url, required String bucket}) {
     final publicMarker = '/object/public/$bucket/';
     final signedMarker = '/object/sign/$bucket/';
 
@@ -38,7 +35,9 @@ class PropertyRepository {
     return Uri.decodeComponent(path);
   }
 
-  Future<List<Map<String, dynamic>>> fetchPropertiesByOwner(String ownerId) async {
+  Future<List<Map<String, dynamic>>> fetchPropertiesByOwner(
+    String ownerId,
+  ) async {
     final rows = await _client
         .from('properties')
         .select(
@@ -58,10 +57,7 @@ class PropertyRepository {
   }) async {
     final rows = await _client.rpc(
       'fetch_seeker_home_properties',
-      params: {
-        'p_limit': limit,
-        'p_offset': offset,
-      },
+      params: {'p_limit': limit, 'p_offset': offset},
     );
 
     return (rows as List)
@@ -102,10 +98,7 @@ class PropertyRepository {
       params['p_rent_type'] = rentType;
     }
 
-    final rows = await _client.rpc(
-      'search_properties_rpc',
-      params: params,
-    );
+    final rows = await _client.rpc('search_properties_rpc', params: params);
 
     return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
@@ -113,13 +106,14 @@ class PropertyRepository {
   }
 
   Future<Map<String, dynamic>?> fetchPropertyDetailById(int propertyId) async {
-    final row = await _client
-        .from('properties')
-        .select(
-          'property_id, owner_id, transaction_type, rent_type, property_type, property_state, property_city, bedrooms, bathrooms, price, area_sqm, location, description, status',
-        )
-        .eq('property_id', propertyId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('properties')
+            .select(
+              'property_id, owner_id, transaction_type, rent_type, property_type, property_state, property_city, bedrooms, bathrooms, price, area_sqm, location, description, status',
+            )
+            .eq('property_id', propertyId)
+            .maybeSingle();
 
     if (row == null) return null;
     final property = Map<String, dynamic>.from(row);
@@ -127,11 +121,12 @@ class PropertyRepository {
 
     String ownerName = 'Unknown';
     if (ownerId != null && ownerId.isNotEmpty) {
-      final ownerRow = await _client
-          .from('user')
-          .select('full_name')
-          .eq('user_id', ownerId)
-          .maybeSingle();
+      final ownerRow =
+          await _client
+              .from('user')
+              .select('full_name')
+              .eq('user_id', ownerId)
+              .maybeSingle();
       ownerName = (ownerRow?['full_name'] as String?) ?? 'Unknown';
     }
 
@@ -140,11 +135,12 @@ class PropertyRepository {
         .select('image_url, image_id')
         .eq('property_id', propertyId)
         .order('image_id', ascending: true);
-    final imageUrls = (imageRows as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .map((row) => row['image_url'] as String?)
-        .whereType<String>()
-        .toList();
+    final imageUrls =
+        (imageRows as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((row) => row['image_url'] as String?)
+            .whereType<String>()
+            .toList();
 
     return {
       ...property,
@@ -158,14 +154,15 @@ class PropertyRepository {
     required int propertyId,
     required String ownerId,
   }) async {
-    final row = await _client
-        .from('properties')
-        .select(
-          'property_id, property_type, property_state, property_city, bedrooms, bathrooms, status, price, area_sqm, location, description',
-        )
-        .eq('property_id', propertyId)
-        .eq('owner_id', ownerId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('properties')
+            .select(
+              'property_id, transaction_type, rent_type, property_type, property_state, property_city, bedrooms, bathrooms, status, price, area_sqm, location, description',
+            )
+            .eq('property_id', propertyId)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
 
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
@@ -175,30 +172,29 @@ class PropertyRepository {
     required int propertyId,
     required String ownerId,
   }) async {
-    final property = await _client
-        .from('properties')
-        .select('certificate_url')
-        .eq('property_id', propertyId)
-        .eq('owner_id', ownerId)
-        .maybeSingle();
+    final property =
+        await _client
+            .from('properties')
+            .select('certificate_url')
+            .eq('property_id', propertyId)
+            .eq('owner_id', ownerId)
+            .maybeSingle();
 
     final imageRows = await _client
         .from('property_images')
         .select('image_url')
         .eq('property_id', propertyId);
 
-    final imagePaths = (imageRows as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .map((row) => row['image_url'] as String?)
-        .whereType<String>()
-        .map(
-          (url) => _extractPathFromUrl(
-            url: url,
-            bucket: 'property-images',
-          ),
-        )
-        .whereType<String>()
-        .toList();
+    final imagePaths =
+        (imageRows as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((row) => row['image_url'] as String?)
+            .whereType<String>()
+            .map(
+              (url) => _extractPathFromUrl(url: url, bucket: 'property-images'),
+            )
+            .whereType<String>()
+            .toList();
 
     if (imagePaths.isNotEmpty) {
       await _client.storage.from('property-images').remove(imagePaths);
@@ -208,8 +204,11 @@ class PropertyRepository {
     // effectively removes the property-number folder as well.
     final imageFolder = 'properties/$ownerId/$propertyId';
     try {
-      final leftovers = await _client.storage.from('property-images').list(path: imageFolder);
-      final leftoverPaths = leftovers.map((e) => '$imageFolder/${e.name}').toList();
+      final leftovers = await _client.storage
+          .from('property-images')
+          .list(path: imageFolder);
+      final leftoverPaths =
+          leftovers.map((e) => '$imageFolder/${e.name}').toList();
       if (leftoverPaths.isNotEmpty) {
         await _client.storage.from('property-images').remove(leftoverPaths);
       }
@@ -224,7 +223,9 @@ class PropertyRepository {
         bucket: 'property-certificates',
       );
       if (certificatePath != null) {
-        await _client.storage.from('property-certificates').remove([certificatePath]);
+        await _client.storage.from('property-certificates').remove([
+          certificatePath,
+        ]);
       }
     }
 
@@ -250,32 +251,35 @@ class PropertyRepository {
     String? certificateUrl,
     String? description,
   }) async {
-    final row = await _client
-        .from('properties')
-        .insert({
-          'owner_id': ownerId,
-          'owner_role': 'owner',
-          'transaction_type': transactionType,
-          'rent_type': rentType,
-          'property_type': propertyType,
-          'property_state': propertyState,
-          'property_city': propertyCity,
-          'bedrooms': bedrooms,
-          'bathrooms': bathrooms,
-          'price': price,
-          'area_sqm': areaSqm,
-          'location': locationUrl,
-          'certificate_url': certificateUrl,
-          'description': description,
-          'status': 'active',
-        })
-        .select('property_id')
-        .single();
+    final row =
+        await _client
+            .from('properties')
+            .insert({
+              'owner_id': ownerId,
+              'owner_role': 'owner',
+              'transaction_type': transactionType,
+              'rent_type': rentType,
+              'property_type': propertyType,
+              'property_state': propertyState,
+              'property_city': propertyCity,
+              'bedrooms': bedrooms,
+              'bathrooms': bathrooms,
+              'price': price,
+              'area_sqm': areaSqm,
+              'location': locationUrl,
+              'certificate_url': certificateUrl,
+              'description': description,
+              'status': 'active',
+            })
+            .select('property_id')
+            .single();
 
     final dynamic propertyId = row['property_id'];
     if (propertyId is int) return propertyId;
     if (propertyId is num) return propertyId.toInt();
-    throw const FormatException('Invalid property_id type returned from database.');
+    throw const FormatException(
+      'Invalid property_id type returned from database.',
+    );
   }
 
   Future<void> insertPropertyImages({
@@ -284,14 +288,10 @@ class PropertyRepository {
   }) async {
     if (imageUrls.isEmpty) return;
 
-    final rows = imageUrls
-        .map(
-          (url) => {
-            'property_id': propertyId,
-            'image_url': url,
-          },
-        )
-        .toList();
+    final rows =
+        imageUrls
+            .map((url) => {'property_id': propertyId, 'image_url': url})
+            .toList();
 
     await _client.from('property_images').insert(rows);
   }
@@ -300,6 +300,7 @@ class PropertyRepository {
     required int propertyId,
     required String ownerId,
     required double price,
+    required String? rentType,
     required String? locationUrl,
     required String? description,
     required String status,
@@ -308,6 +309,7 @@ class PropertyRepository {
         .from('properties')
         .update({
           'price': price,
+          'rent_type': rentType,
           'location': locationUrl,
           'description': description,
           'status': status,
@@ -317,9 +319,7 @@ class PropertyRepository {
         .eq('owner_id', ownerId);
   }
 
-  Future<void> markPropertyInactive({
-    required int propertyId,
-  }) async {
+  Future<void> markPropertyInactive({required int propertyId}) async {
     await _client
         .from('properties')
         .update({
@@ -351,7 +351,9 @@ class PropertyRepository {
     final path = 'certificates/$ownerId/$ts-${file.name}';
     final bytes = await file.readAsBytes();
 
-    await _client.storage.from('property-certificates').uploadBinary(path, bytes);
+    await _client.storage
+        .from('property-certificates')
+        .uploadBinary(path, bytes);
     return _client.storage.from('property-certificates').getPublicUrl(path);
   }
 }

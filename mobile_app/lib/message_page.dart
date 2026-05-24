@@ -37,6 +37,21 @@ class _MessagePageState extends State<MessagePage> {
     return '$h:$m $suffix';
   }
 
+  String _buildInitials(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -155,44 +170,45 @@ class _MessagePageState extends State<MessagePage> {
           bottom: false,
           child: Column(
             children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Text(
-                    'Message',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 37 / 2,
-                      fontWeight: FontWeight.w700,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text(
+                      'Message',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 37 / 2,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: _goBack,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      color: Colors.white,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: _goBack,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: page,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
+                  ],
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _errorMessage != null
-                        ? Center(
+              ),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: page,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  child:
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _errorMessage != null
+                          ? Center(
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Text(
@@ -206,219 +222,273 @@ class _MessagePageState extends State<MessagePage> {
                               ),
                             ),
                           )
-                        : _threads.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No chats yet.',
-                                  style: TextStyle(
-                                    color: Color(0xFF1F2430),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            : RefreshIndicator(
-                                onRefresh: _load,
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    16,
-                                    16,
-                                    12,
-                                  ),
-                                  itemCount: _threads.length,
-                                  itemBuilder: (context, index) {
-                                    final thread = _threads[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
-                                      child: Material(
-                                        color: const Color(0xFFF2F2F3),
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(10),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => ChatDetailPage(
+                          : _threads.isEmpty
+                          ? const Center(
+                            child: Text(
+                              'No chats yet.',
+                              style: TextStyle(
+                                color: Color(0xFF1F2430),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                          : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                16,
+                                16,
+                                12,
+                              ),
+                              itemCount: _threads.length,
+                              itemBuilder: (context, index) {
+                                final thread = _threads[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Material(
+                                    color: const Color(0xFFF2F2F3),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (_) => ChatDetailPage(
                                                   chatId: thread.chatId,
                                                   peerName: thread.peerName,
                                                   propertyId: thread.propertyId,
                                                 ),
-                                              ),
-                                            ).then((_) => _load());
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              border: Border.all(
-                                                color: const Color(0xFFE0E2E5),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.account_circle_rounded,
-                                                  size: 34,
-                                                  color: Color(0xFF1C2A4A),
+                                          ),
+                                        ).then((_) => _load());
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFE0E2E5),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 42,
+                                              height: 42,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE7ECF6),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFFD7DBE2,
+                                                  ),
                                                 ),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  _buildInitials(
+                                                    thread.peerName,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF1C2A4A),
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
                                                     children: [
-                                                      Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child: Text(
-                                                              thread.peerName,
-                                                              maxLines: 1,
-                                                              overflow: TextOverflow
+                                                      Expanded(
+                                                        child: Text(
+                                                          thread.peerName,
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
                                                                   .ellipsis,
-                                                              style: const TextStyle(
-                                                                color:
-                                                                    Color(0xFF1F2430),
-                                                                fontSize: 18 / 1.2,
-                                                                fontWeight:
-                                                                    FontWeight.w700,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(width: 8),
-                                                          Text(
-                                                            _formatTime(thread.lastMessageAt),
-                                                            style: const TextStyle(
-                                                              color: Color(0xFF8E949F),
-                                                              fontSize: 12,
-                                                              fontWeight: FontWeight.w600,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child: Text(
-                                                              thread.lastMessageText,
-                                                              maxLines: 1,
-                                                              overflow: TextOverflow
-                                                                  .ellipsis,
-                                                              style: const TextStyle(
-                                                                color:
-                                                                    Color(0xFF4A5160),
-                                                                fontSize: 15,
-                                                                fontWeight:
-                                                                    FontWeight.w500,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          if (thread.unreadCount > 0) ...[
-                                                            const SizedBox(width: 8),
-                                                            Container(
-                                                              padding: const EdgeInsets.symmetric(
-                                                                horizontal: 6,
-                                                                vertical: 2,
-                                                              ),
-                                                              decoration: BoxDecoration(
-                                                                color: const Color(0xFF1C2A4A),
-                                                                borderRadius: BorderRadius.circular(10),
-                                                              ),
-                                                              child: Text(
-                                                                thread.unreadCount > 99
-                                                                    ? '99+'
-                                                                    : thread.unreadCount.toString(),
-                                                                style: const TextStyle(
-                                                                  color: Colors.white,
-                                                                  fontSize: 11,
-                                                                  fontWeight: FontWeight.w700,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Color(
+                                                                  0xFF1F2430,
                                                                 ),
+                                                                fontSize:
+                                                                    18 / 1.2,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
                                                               ),
-                                                            ),
-                                                          ],
-                                                        ],
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        _formatTime(
+                                                          thread.lastMessageAt,
+                                                        ),
+                                                        style: const TextStyle(
+                                                          color: Color(
+                                                            0xFF8E949F,
+                                                          ),
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
-                                                ),
-                                              ],
+                                                  const SizedBox(height: 2),
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          thread
+                                                              .lastMessageText,
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Color(
+                                                                  0xFF4A5160,
+                                                                ),
+                                                                fontSize: 15,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      if (thread.unreadCount >
+                                                          0) ...[
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(
+                                                              0xFF1C2A4A,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  10,
+                                                                ),
+                                                          ),
+                                                          child: Text(
+                                                            thread.unreadCount >
+                                                                    99
+                                                                ? '99+'
+                                                                : thread
+                                                                    .unreadCount
+                                                                    .toString(),
+                                                            style:
+                                                                const TextStyle(
+                                                                  color:
+                                                                      Colors
+                                                                          .white,
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
         bottomNavigationBar: NavigationBarTheme(
-        data: const NavigationBarThemeData(
-          height: 72,
-          indicatorColor: Colors.transparent,
-          labelTextStyle: WidgetStatePropertyAll(
-            TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          data: const NavigationBarThemeData(
+            height: 72,
+            indicatorColor: Colors.transparent,
+            labelTextStyle: WidgetStatePropertyAll(
+              TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            iconTheme: WidgetStatePropertyAll(
+              IconThemeData(color: Colors.white, size: 30),
             ),
           ),
-          iconTheme: WidgetStatePropertyAll(
-            IconThemeData(color: Colors.white, size: 30),
+          child: NavigationBar(
+            backgroundColor: primary,
+            selectedIndex: 2,
+            onDestinationSelected: _onNavTap,
+            destinations:
+                _currentRole == 'owner'
+                    ? const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_rounded),
+                        label: 'HOME',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.add_circle_rounded),
+                        label: 'Add',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.send_rounded),
+                        label: 'Message',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.more_horiz_rounded),
+                        label: 'More',
+                      ),
+                    ]
+                    : const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_rounded),
+                        label: 'HOME',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.search_rounded),
+                        label: 'SEARCH',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.send_rounded),
+                        label: 'MESSAGE',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.more_horiz_rounded),
+                        label: 'MORE',
+                      ),
+                    ],
           ),
-        ),
-        child: NavigationBar(
-          backgroundColor: primary,
-          selectedIndex: 2,
-          onDestinationSelected: _onNavTap,
-          destinations: _currentRole == 'owner'
-              ? const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_rounded),
-                    label: 'HOME',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.add_circle_rounded),
-                    label: 'Add',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.send_rounded),
-                    label: 'Message',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.more_horiz_rounded),
-                    label: 'More',
-                  ),
-                ]
-              : const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_rounded),
-                    label: 'HOME',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.search_rounded),
-                    label: 'SEARCH',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.send_rounded),
-                    label: 'MESSAGE',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.more_horiz_rounded),
-                    label: 'MORE',
-                  ),
-                ],
-        ),
         ),
       ),
     );

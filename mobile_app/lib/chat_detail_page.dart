@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'features/chat/state/chat_detail_controller.dart';
 import 'features/chat/state/chat_list_controller.dart';
@@ -28,6 +31,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   final RatingController _ratingController = RatingController();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  RealtimeChannel? _chatChannel;
+  Timer? _messageRefreshTimer;
 
   bool _isLoading = true;
   bool _isSending = false;
@@ -47,9 +52,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   int _messagePage = 0;
   String? _currentUserId;
   String? _peerUserId;
+  ChatPeerProfile? _peerProfile;
   double? _peerAverageRating;
   int _peerRatingCount = 0;
   bool _isRatingLoading = false;
+  bool _isRefreshingLive = false;
+  bool _pendingLiveRefresh = false;
   static const int _messagePageSize = 30;
 
   String _formatMessageTime(DateTime? value) {
@@ -67,6 +75,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     super.initState();
     _peerName = widget.peerName;
     _load();
+    _listenForMessages();
+    _startMessagePolling();
     _scrollController.addListener(_onScroll);
   }
 
@@ -95,6 +105,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       _errorMessage = result.success ? null : result.errorMessage;
       _messages = result.messages;
       _peerName = result.peerName ?? _peerName;
+      _peerProfile = result.peerProfile;
       _seekerUserId = result.seekerUserId;
       _ownerUserId = result.ownerUserId;
       _propertyId = widget.propertyId ?? result.propertyId;
@@ -196,6 +207,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     setState(() {
       _messages = result.messages;
       _peerName = result.peerName ?? _peerName;
+      _peerProfile = result.peerProfile ?? _peerProfile;
       _messagePage = 0;
       _hasMoreMessages = result.messages.length == _messagePageSize;
     });
@@ -208,6 +220,85 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
     _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  bool get _isNearBottom {
+    if (!_scrollController.hasClients) return true;
+    return _scrollController.position.maxScrollExtent -
+            _scrollController.position.pixels <=
+        120;
+  }
+
+  void _listenForMessages() {
+    _chatChannel?.unsubscribe();
+    _chatChannel =
+        Supabase.instance.client
+            .channel('chat-detail-${widget.chatId}')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'chat_messages',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'chat_id',
+                value: widget.chatId.toString(),
+              ),
+              callback: (_) {
+                _handleLiveMessage();
+              },
+            )
+            .subscribe();
+  }
+
+  void _startMessagePolling() {
+    _messageRefreshTimer?.cancel();
+    _messageRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted || _isLoading || _isSending || _isLoadingMoreMessages) {
+        return;
+      }
+      _handleLiveMessage();
+    });
+  }
+
+  Future<void> _handleLiveMessage() async {
+    if (!mounted) return;
+    if (_isRefreshingLive) {
+      _pendingLiveRefresh = true;
+      return;
+    }
+
+    _isRefreshingLive = true;
+    final shouldStickToBottom = _isNearBottom;
+    final previousCount = _messages.length;
+    final result = await _controller.loadChat(
+      chatId: widget.chatId,
+      peerNameHint: _peerName,
+      limit: _messagePageSize,
+      offset: 0,
+    );
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        _messages = result.messages;
+        _peerName = result.peerName ?? _peerName;
+        _peerProfile = result.peerProfile ?? _peerProfile;
+        _messagePage = 0;
+        _hasMoreMessages = result.messages.length == _messagePageSize;
+      });
+
+      if (shouldStickToBottom || result.messages.length > previousCount) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    }
+
+    _isRefreshingLive = false;
+    if (_pendingLiveRefresh) {
+      _pendingLiveRefresh = false;
+      await _handleLiveMessage();
+    }
   }
 
   void _onScroll() {
@@ -293,11 +384,16 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     if (!result.success) {
       setState(() {
         _isSending = false;
-        _messages = _messages.where((m) => m.messageId != tempMessage.messageId).toList();
+        _messages =
+            _messages
+                .where((m) => m.messageId != tempMessage.messageId)
+                .toList();
       });
       _messageController.text = text;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Failed to send message.')),
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Failed to send message.'),
+        ),
       );
       return;
     }
@@ -342,43 +438,58 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       );
     }
 
-    String statusText;
-    Color statusColor;
     if (_isDealCompleted) {
-      statusText = 'Deal completed';
-      statusColor = const Color(0xFF2F7D32);
-    } else if (_isDealPending) {
-      statusText = 'Pending confirmation';
-      statusColor = const Color(0xFFD68600);
-    } else {
-      statusText = 'No deal request yet';
-      statusColor = const Color(0xFF8E949F);
+      return _buildDealLink(
+        label: 'Deal completed',
+        labelColor: const Color(0xFF2F7D32),
+      );
+    }
+
+    if (_isDealPending) {
+      return _buildDealLink(
+        label: 'Pending confirmation',
+        labelColor: const Color(0xFFD68600),
+      );
+    }
+
+    return _buildDealLink();
+  }
+
+  Widget _buildDealLink({String? label, Color? labelColor}) {
+    final seekerId = _seekerUserId;
+    final ownerId = _ownerUserId;
+    final propertyId = _propertyId;
+    if (seekerId == null || ownerId == null || propertyId == null) {
+      return const SizedBox.shrink();
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          statusText,
-          style: TextStyle(
-            color: statusColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+        if (label != null) ...[
+          Text(
+            label,
+            style: TextStyle(
+              color: labelColor ?? const Color(0xFF8E949F),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
+          const SizedBox(width: 10),
+        ],
         TextButton(
           onPressed: () async {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => DealDetailPage(
-                  peerName: _peerName,
-                  seekerUserId: seekerId,
-                  ownerUserId: ownerId,
-                  propertyId: propertyId,
-                  propertySummary: _propertySummary,
-                ),
+                builder:
+                    (_) => DealDetailPage(
+                      peerName: _peerName,
+                      seekerUserId: seekerId,
+                      ownerUserId: ownerId,
+                      propertyId: propertyId,
+                      propertySummary: _propertySummary,
+                    ),
               ),
             );
             await _loadDealPreviewStatus();
@@ -424,11 +535,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.star_rounded,
-          color: Color(0xFFF4C542),
-          size: 16,
-        ),
+        const Icon(Icons.star_rounded, color: Color(0xFFF4C542), size: 16),
         const SizedBox(width: 4),
         Text(
           '${_peerAverageRating!.toStringAsFixed(1)} ($_peerRatingCount)',
@@ -439,6 +546,155 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
         ),
       ],
+    );
+  }
+
+  String _buildShortName(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'User';
+    if (parts.length == 1) return parts.first;
+    return '${parts.first} ${parts.last}';
+  }
+
+  String _buildInitials(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  String get _displayName {
+    final fullName = _peerProfile?.fullName.trim() ?? '';
+    return _buildShortName(fullName.isEmpty ? _peerName : fullName);
+  }
+
+  String get _displayPhone {
+    final phone = _peerProfile?.phone.trim() ?? '';
+    return phone.isEmpty ? 'Phone not available' : phone;
+  }
+
+  void _showPeerProfileSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final fullName =
+            _peerProfile?.fullName.trim().isNotEmpty == true
+                ? _peerProfile!.fullName.trim()
+                : _peerName;
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD0D5DD),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 18),
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: const Color(0xFFE7ECF6),
+                child: Text(
+                  _buildInitials(fullName),
+                  style: const TextStyle(
+                    color: Color(0xFF1C2A4A),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                fullName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF1F2430),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _ProfileInfoRow(
+                icon: Icons.phone_rounded,
+                label: 'Phone',
+                value: _displayPhone,
+              ),
+              const SizedBox(height: 10),
+              _ProfileInfoRow(
+                icon: Icons.star_rounded,
+                label: 'Rating',
+                value:
+                    _peerAverageRating == null || _peerRatingCount == 0
+                        ? 'No ratings yet'
+                        : '${_peerAverageRating!.toStringAsFixed(1)} from $_peerRatingCount rating(s)',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderProfile() {
+    return GestureDetector(
+      onTap: _showPeerProfileSheet,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F6FA).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Center(
+              child: Text(
+                _buildInitials(_peerProfile?.fullName ?? _peerName),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _displayName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildRatingSummary(),
+        ],
+      ),
     );
   }
 
@@ -457,7 +713,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => PropertyDetailPage(propertyId: property.propertyId),
+                builder:
+                    (_) => PropertyDetailPage(propertyId: property.propertyId),
               ),
             );
           },
@@ -474,27 +731,30 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   child: SizedBox(
                     width: 62,
                     height: 62,
-                    child: property.imageUrl == null || property.imageUrl!.trim().isEmpty
-                        ? Container(
-                            color: const Color(0xFFF2F2F3),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.home_work_outlined,
-                              color: Color(0xFF8E949F),
-                            ),
-                          )
-                        : Image.network(
-                            property.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                    child:
+                        property.imageUrl == null ||
+                                property.imageUrl!.trim().isEmpty
+                            ? Container(
                               color: const Color(0xFFF2F2F3),
                               alignment: Alignment.center,
                               child: const Icon(
-                                Icons.broken_image_outlined,
+                                Icons.home_work_outlined,
                                 color: Color(0xFF8E949F),
                               ),
+                            )
+                            : Image.network(
+                              property.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (_, __, ___) => Container(
+                                    color: const Color(0xFFF2F2F3),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.broken_image_outlined,
+                                      color: Color(0xFF8E949F),
+                                    ),
+                                  ),
                             ),
-                          ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -553,6 +813,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   @override
   void dispose() {
+    final channel = _chatChannel;
+    if (channel != null) {
+      Supabase.instance.client.removeChannel(channel);
+    }
+    _messageRefreshTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -575,18 +840,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 children: [
                   Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _peerName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _buildRatingSummary(),
-                    ],
+                    children: [_buildHeaderProfile()],
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -609,118 +863,141 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                  child: Column(
-                    children: [
-                      _buildPropertySummaryCard(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: _buildDealActions(),
-                        ),
+                child: Column(
+                  children: [
+                    _buildPropertySummaryCard(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildDealActions(),
                       ),
-                      Expanded(
-                        child: _isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : _errorMessage != null
+                    ),
+                    Expanded(
+                      child:
+                          _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _errorMessage != null
                               ? Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Text(
-                                      _errorMessage!,
-                                      style: const TextStyle(
-                                        color: Color(0xFF1F2430),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1F2430),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                )
+                                ),
+                              )
                               : RefreshIndicator(
-                                  onRefresh: _load,
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      16,
-                                      16,
-                                      10,
-                                    ),
-                                    itemCount:
-                                        _messages.length + (_isLoadingMoreMessages ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (_isLoadingMoreMessages && index == 0) {
-                                        return const Padding(
-                                          padding: EdgeInsets.only(bottom: 8),
-                                          child: Center(
-                                            child: SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                onRefresh: _load,
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    16,
+                                    16,
+                                    10,
+                                  ),
+                                  itemCount:
+                                      _messages.length +
+                                      (_isLoadingMoreMessages ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (_isLoadingMoreMessages && index == 0) {
+                                      return const Padding(
+                                        padding: EdgeInsets.only(bottom: 8),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
                                             ),
-                                          ),
-                                        );
-                                      }
-                                      final message = _messages[
-                                          index - (_isLoadingMoreMessages ? 1 : 0)];
-                                      return Align(
-                                        alignment: message.isMine
-                                            ? Alignment.centerRight
-                                            : Alignment.centerLeft,
-                                        child: Container(
-                                          margin: const EdgeInsets.only(bottom: 10),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            maxWidth: 280,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: message.isMine
-                                                ? const Color(0xFF1C2A4A)
-                                                : Colors.white,
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(
-                                              color: message.isMine
-                                                  ? const Color(0xFF1C2A4A)
-                                                  : const Color(0xFFDDE0E5),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: message.isMine
-                                                ? CrossAxisAlignment.end
-                                                : CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                message.messageText,
-                                                style: TextStyle(
-                                                  color: message.isMine
-                                                      ? Colors.white
-                                                      : const Color(0xFF1F2430),
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                _formatMessageTime(message.createdAt),
-                                                style: TextStyle(
-                                                  color: message.isMine
-                                                      ? const Color(0xFFD1D4D9)
-                                                      : const Color(0xFF8E949F),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
                                           ),
                                         ),
                                       );
-                                    },
-                                  ),
+                                    }
+                                    final message =
+                                        _messages[index -
+                                            (_isLoadingMoreMessages ? 1 : 0)];
+                                    return Align(
+                                      alignment:
+                                          message.isMine
+                                              ? Alignment.centerRight
+                                              : Alignment.centerLeft,
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 10,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 280,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              message.isMine
+                                                  ? const Color(0xFF1C2A4A)
+                                                  : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                message.isMine
+                                                    ? const Color(0xFF1C2A4A)
+                                                    : const Color(0xFFDDE0E5),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              message.isMine
+                                                  ? CrossAxisAlignment.end
+                                                  : CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              message.messageText,
+                                              style: TextStyle(
+                                                color:
+                                                    message.isMine
+                                                        ? Colors.white
+                                                        : const Color(
+                                                          0xFF1F2430,
+                                                        ),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _formatMessageTime(
+                                                message.createdAt,
+                                              ),
+                                              style: TextStyle(
+                                                color:
+                                                    message.isMine
+                                                        ? const Color(
+                                                          0xFFD1D4D9,
+                                                        )
+                                                        : const Color(
+                                                          0xFF8E949F,
+                                                        ),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
+                              ),
                     ),
                     Container(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -781,19 +1058,23 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: _isSending
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
+                              child:
+                                  _isSending
+                                      ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
                                         ),
+                                      )
+                                      : const Icon(
+                                        Icons.send_rounded,
+                                        size: 20,
                                       ),
-                                    )
-                                  : const Icon(Icons.send_rounded, size: 20),
                             ),
                           ),
                         ],
@@ -805,6 +1086,70 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileInfoRow extends StatelessWidget {
+  const _ProfileInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF0FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF1C2A4A), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF667085),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2430),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

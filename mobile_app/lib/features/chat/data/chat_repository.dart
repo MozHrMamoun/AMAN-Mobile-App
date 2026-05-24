@@ -4,9 +4,22 @@ import '../../../core/supabase_client_provider.dart';
 
 class ChatRepository {
   ChatRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   final SupabaseClient _client;
+
+  Future<Map<String, dynamic>?> fetchUserProfileById(String userId) async {
+    if (userId.trim().isEmpty) return null;
+
+    final row =
+        await _client
+            .from('user')
+            .select('user_id, full_name, phone, username')
+            .eq('user_id', userId)
+            .maybeSingle();
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
+  }
 
   Future<Map<int, Map<String, dynamic>>> fetchPropertySummariesByIds(
     List<int> propertyIds,
@@ -30,10 +43,12 @@ class ChatRepository {
     for (final raw in (imageRows as List)) {
       final row = Map<String, dynamic>.from(raw as Map);
       final propertyIdRaw = row['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-      if (propertyId == null || firstImageByPropertyId.containsKey(propertyId)) {
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null ||
+          firstImageByPropertyId.containsKey(propertyId)) {
         continue;
       }
       final imageUrl = row['image_url']?.toString();
@@ -46,9 +61,10 @@ class ChatRepository {
     for (final raw in (propertyRows as List)) {
       final row = Map<String, dynamic>.from(raw as Map);
       final propertyIdRaw = row['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
       if (propertyId == null) continue;
 
       result[propertyId] = {
@@ -66,11 +82,12 @@ class ChatRepository {
     final userId = currentUserId;
     if (userId == null) return null;
 
-    final row = await _client
-        .from('user')
-        .select('user_id, role, full_name')
-        .eq('user_id', userId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('user')
+            .select('user_id, role, full_name')
+            .eq('user_id', userId)
+            .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
@@ -131,13 +148,14 @@ class ChatRepository {
     required String seekerUserId,
     required int propertyId,
   }) async {
-    final row = await _client
-        .from('chats')
-        .select('chat_id, owner_user_id, seeker_user_id, property_id')
-        .eq('owner_user_id', ownerUserId)
-        .eq('seeker_user_id', seekerUserId)
-        .eq('property_id', propertyId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('chats')
+            .select('chat_id, owner_user_id, seeker_user_id, property_id')
+            .eq('owner_user_id', ownerUserId)
+            .eq('seeker_user_id', seekerUserId)
+            .eq('property_id', propertyId)
+            .maybeSingle();
 
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
@@ -148,26 +166,28 @@ class ChatRepository {
     required String seekerUserId,
     required int propertyId,
   }) async {
-    final row = await _client
-        .from('chats')
-        .insert({
-          'owner_user_id': ownerUserId,
-          'seeker_user_id': seekerUserId,
-          'property_id': propertyId,
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .select('chat_id, owner_user_id, seeker_user_id, property_id')
-        .single();
+    final row =
+        await _client
+            .from('chats')
+            .insert({
+              'owner_user_id': ownerUserId,
+              'seeker_user_id': seekerUserId,
+              'property_id': propertyId,
+              'created_at': DateTime.now().toUtc().toIso8601String(),
+            })
+            .select('chat_id, owner_user_id, seeker_user_id, property_id')
+            .single();
 
     return Map<String, dynamic>.from(row);
   }
 
   Future<Map<String, dynamic>?> fetchChatById(int chatId) async {
-    final row = await _client
-        .from('chats')
-        .select('chat_id, owner_user_id, seeker_user_id, property_id')
-        .eq('chat_id', chatId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('chats')
+            .select('chat_id, owner_user_id, seeker_user_id, property_id')
+            .eq('chat_id', chatId)
+            .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
@@ -181,7 +201,9 @@ class ChatRepository {
   }) async {
     dynamic query = _client
         .from('chat_messages')
-        .select('message_id, chat_id, sender_user_id, message_text, created_at, read_at')
+        .select(
+          'message_id, chat_id, sender_user_id, message_text, created_at, read_at',
+        )
         .eq('chat_id', chatId)
         .order('created_at', ascending: false);
 

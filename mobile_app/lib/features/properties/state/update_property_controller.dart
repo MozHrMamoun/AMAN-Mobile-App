@@ -6,13 +6,15 @@ import '../data/property_repository.dart';
 class UpdatePropertyData {
   const UpdatePropertyData({
     required this.price,
-    required this.location,
+    required this.transactionType,
+    required this.rentType,
     required this.description,
     required this.isActive,
   });
 
   final String price;
-  final String location;
+  final String transactionType;
+  final String? rentType;
   final String description;
   final bool isActive;
 }
@@ -39,7 +41,7 @@ class UpdatePropertyResult {
 
 class UpdatePropertyController {
   UpdatePropertyController({PropertyRepository? repository})
-      : _repository = repository ?? PropertyRepository();
+    : _repository = repository ?? PropertyRepository();
 
   final PropertyRepository _repository;
 
@@ -59,17 +61,22 @@ class UpdatePropertyController {
       }
 
       final dynamic priceRaw = row['price'];
-      final dynamic locationRaw = row['location'];
+      final transactionType =
+          (row['transaction_type']?.toString().trim().toLowerCase() ?? '');
+      final rentTypeRaw = row['rent_type']?.toString().trim().toLowerCase();
       final dynamic descriptionRaw = row['description'];
       final dynamic statusRaw = row['status'];
 
       final priceText = priceRaw == null ? '' : priceRaw.toString();
-      final isActive = (statusRaw?.toString().toLowerCase() ?? 'active') == 'active';
+      final isActive =
+          (statusRaw?.toString().toLowerCase() ?? 'active') == 'active';
 
       return UpdatePropertyResult.success(
         data: UpdatePropertyData(
           price: priceText,
-          location: locationRaw?.toString() ?? '',
+          transactionType: transactionType,
+          rentType:
+              rentTypeRaw == null || rentTypeRaw.isEmpty ? null : rentTypeRaw,
           description: descriptionRaw?.toString() ?? '',
           isActive: isActive,
         ),
@@ -88,7 +95,8 @@ class UpdatePropertyController {
   Future<UpdatePropertyResult> updateProperty({
     required int propertyId,
     required String priceText,
-    required String location,
+    required String transactionType,
+    required String? rentType,
     required String description,
     required bool isActive,
     required List<XFile> newImages,
@@ -108,12 +116,21 @@ class UpdatePropertyController {
       return UpdatePropertyResult.error('Price must be a valid number.');
     }
 
+    final normalizedTransactionType = transactionType.trim().toLowerCase();
+    final normalizedRentType = rentType?.trim().toLowerCase();
+    if (normalizedTransactionType == 'rent' &&
+        (normalizedRentType == null || normalizedRentType.isEmpty)) {
+      return UpdatePropertyResult.error('Type of rent is required.');
+    }
+
     try {
       await _repository.updateProperty(
         propertyId: propertyId,
         ownerId: userId,
         price: price,
-        locationUrl: location.trim().isEmpty ? null : location.trim(),
+        rentType:
+            normalizedTransactionType == 'rent' ? normalizedRentType : null,
+        locationUrl: null,
         description: description.trim().isEmpty ? null : description.trim(),
         status: isActive ? 'active' : 'inactive',
       );
@@ -129,7 +146,10 @@ class UpdatePropertyController {
           );
           urls.add(url);
         }
-        await _repository.insertPropertyImages(propertyId: propertyId, imageUrls: urls);
+        await _repository.insertPropertyImages(
+          propertyId: propertyId,
+          imageUrls: urls,
+        );
       }
 
       return UpdatePropertyResult.success();

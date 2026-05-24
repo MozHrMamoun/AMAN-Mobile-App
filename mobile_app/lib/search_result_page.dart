@@ -455,6 +455,18 @@ class _ResultCard extends StatelessWidget {
   final SearchPropertyItem item;
   final VoidCallback onTap;
 
+  String _buildShortName(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'Unknown';
+    if (parts.length == 1) return parts.first;
+    return '${parts.first} ${parts.last}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -521,29 +533,84 @@ class _ResultCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Expanded(
-                child: Text(
-                  [
-                    'Transaction: ${item.transactionType == 'rent' ? 'Rent' : 'Buy'}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _CardInfoLine(
+                      label: 'Transaction',
+                      value: item.transactionType == 'rent' ? 'Rent' : 'Buy',
+                    ),
                     if (item.transactionType == 'rent' && item.rentType != null)
-                      'Type of Rent: ${item.rentType == 'monthly' ? 'Monthly' : 'Yearly'}',
-                    'Bedrooms: ${item.bedrooms ?? '-'}',
-                    'Bathrooms: ${item.bathrooms ?? '-'}',
-                    'Owner: ${item.ownerName}',
-                    'Rating: ${item.ownerRating == null ? '-' : item.ownerRating!.toStringAsFixed(1)}',
-                  ].join('\n'),
-                  maxLines: 6,
-                  overflow: TextOverflow.clip,
-                  style: const TextStyle(
-                    color: Color(0xFF8E949F),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.25,
-                  ),
+                      _CardInfoLine(
+                        label: 'Type of Rent',
+                        value:
+                            item.rentType == 'monthly' ? 'Monthly' : 'Yearly',
+                      ),
+                    _CardInfoLine(
+                      label: 'Bedrooms',
+                      value: '${item.bedrooms ?? '-'}',
+                    ),
+                    _CardInfoLine(
+                      label: 'Bathrooms',
+                      value: '${item.bathrooms ?? '-'}',
+                    ),
+                    _CardInfoLine(
+                      label: 'Owner',
+                      value: _buildShortName(item.ownerName),
+                    ),
+                    _CardInfoLine(
+                      label: 'Rating',
+                      value:
+                          item.ownerRating == null
+                              ? '-'
+                              : item.ownerRating!.toStringAsFixed(1),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CardInfoLine extends StatelessWidget {
+  const _CardInfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                color: Color(0xFF4A5160),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                color: Color(0xFF7D8491),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

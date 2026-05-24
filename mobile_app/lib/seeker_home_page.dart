@@ -144,6 +144,26 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
         }).toList();
   }
 
+  Future<void> _pickCity() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => _SearchableSelectionSheet(
+            title: 'Select City',
+            items: _cityOptions,
+            selectedValue: _selectedCity,
+          ),
+    );
+
+    if (!mounted || selected == null) return;
+    setState(() {
+      _selectedCity = selected;
+      _applyFilters();
+    });
+  }
+
   Future<void> _loadNotificationCount() async {
     if (AppSession.isGuestMode) return;
     final count = await _notificationController.loadUnreadCount();
@@ -316,16 +336,10 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                           Row(
                             children: [
                               Expanded(
-                                child: _FilterDropdown(
+                                child: _SearchTriggerField(
                                   hint: 'Property City',
                                   value: _selectedCity,
-                                  items: _cityOptions,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedCity = value;
-                                      _applyFilters();
-                                    });
-                                  },
+                                  onTap: _pickCity,
                                 ),
                               ),
                               const SizedBox(width: 18),
@@ -614,6 +628,253 @@ class _FilterDropdown extends StatelessWidget {
   }
 }
 
+class _SearchTriggerField extends StatelessWidget {
+  const _SearchTriggerField({
+    required this.hint,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String hint;
+  final String? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F8F9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFDDE0E5)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value ?? hint,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color:
+                        value == null
+                            ? const Color(0xFF5A606D)
+                            : const Color(0xFF1F2430),
+                    fontSize: 14,
+                    fontWeight:
+                        value == null ? FontWeight.w500 : FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.search_rounded,
+                color: Color(0xFF1C2A4A),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchableSelectionSheet extends StatefulWidget {
+  const _SearchableSelectionSheet({
+    required this.title,
+    required this.items,
+    required this.selectedValue,
+  });
+
+  final String title;
+  final List<String> items;
+  final String? selectedValue;
+
+  @override
+  State<_SearchableSelectionSheet> createState() =>
+      _SearchableSelectionSheetState();
+}
+
+class _SearchableSelectionSheetState extends State<_SearchableSelectionSheet> {
+  late final TextEditingController _controller;
+  late List<String> _filteredItems;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _filteredItems = widget.items;
+    _controller.addListener(_filterItems);
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_filterItems)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _filterItems() {
+    final query = _controller.text.trim().toLowerCase();
+    setState(() {
+      _filteredItems =
+          query.isEmpty
+              ? widget.items
+              : widget.items
+                  .where((item) => item.toLowerCase().contains(query))
+                  .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.5,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD0D5DD),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        color: Color(0xFF1F2430),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFDDE0E5)),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFF1C2A4A),
+                          ),
+                          hintText: 'Type to search city',
+                          hintStyle: TextStyle(
+                            color: Color(0xFF98A2B3),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child:
+                    _filteredItems.isEmpty
+                        ? const Center(
+                          child: Text(
+                            'No matching city found.',
+                            style: TextStyle(
+                              color: Color(0xFF667085),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                        : ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: _filteredItems.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = _filteredItems[index];
+                            final isSelected = item == widget.selectedValue;
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => Navigator.of(context).pop(item),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Ink(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? const Color(0xFFEAF0FF)
+                                            : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? const Color(0xFFB8C8EA)
+                                              : const Color(0xFFDDE0E5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1F2430),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Color(0xFF1C2A4A),
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _PropertyCard extends StatelessWidget {
   const _PropertyCard({
     required this.property,
@@ -624,6 +885,22 @@ class _PropertyCard extends StatelessWidget {
   final SeekerHomePropertyItem property;
   final VoidCallback onTap;
   final VoidCallback onContactTap;
+
+  String _buildShortName(String value) {
+    final parts =
+        value
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .toList();
+    if (parts.isEmpty) return 'Unknown';
+    if (parts.length == 1) return parts.first;
+    return '${parts.first} ${parts.last}';
+  }
+
+  String _ratingText(double? rating) {
+    return rating == null ? '-' : rating.toStringAsFixed(1);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -694,17 +971,21 @@ class _PropertyCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'Bedrooms: ${property.bedrooms ?? '-'}\n'
-                      'Bathrooms: ${property.bathrooms ?? '-'}\n'
-                      'Owner: ${property.ownerName}\n'
-                      'Rating: ${property.ownerRating == null ? '-' : property.ownerRating!.toStringAsFixed(1)}',
-                      style: const TextStyle(
-                        color: Color(0xFF8E949F),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.2,
-                      ),
+                    _InfoLine(
+                      label: 'Bedrooms',
+                      value: '${property.bedrooms ?? '-'}',
+                    ),
+                    _InfoLine(
+                      label: 'Bathrooms',
+                      value: '${property.bathrooms ?? '-'}',
+                    ),
+                    _InfoLine(
+                      label: 'Owner',
+                      value: _buildShortName(property.ownerName),
+                    ),
+                    _InfoLine(
+                      label: 'Rating',
+                      value: _ratingText(property.ownerRating),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
@@ -735,6 +1016,46 @@ class _PropertyCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                color: Color(0xFF4A5160),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                color: Color(0xFF7D8491),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

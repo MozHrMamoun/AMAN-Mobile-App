@@ -15,12 +15,14 @@ class UpdatePropertyPage extends StatefulWidget {
 
 class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
   final List<XFile> _propertyImageFiles = [];
+  final List<String> _rentTypes = ['Monthly', 'Yearly'];
   bool _isActive = true;
   bool _isLoading = true;
   bool _isSubmitting = false;
+  String _transactionType = '';
+  String? _rentType;
 
   final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final UpdatePropertyController _controller = UpdatePropertyController();
@@ -34,7 +36,6 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
   @override
   void dispose() {
     _priceController.dispose();
-    _locationController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -46,16 +47,23 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
 
     if (!result.success || result.data == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Failed to load property.')),
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Failed to load property.'),
+        ),
       );
       Navigator.of(context).pop();
       return;
     }
 
     _priceController.text = result.data!.price;
-    _locationController.text = result.data!.location;
     _descriptionController.text = result.data!.description;
     _isActive = result.data!.isActive;
+    _transactionType = result.data!.transactionType;
+    _rentType =
+        result.data!.rentType == null
+            ? null
+            : result.data!.rentType![0].toUpperCase() +
+                result.data!.rentType!.substring(1);
 
     setState(() {
       _isLoading = false;
@@ -81,7 +89,8 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
     final result = await _controller.updateProperty(
       propertyId: widget.propertyId,
       priceText: _priceController.text,
-      location: _locationController.text,
+      transactionType: _transactionType,
+      rentType: _rentType,
       description: _descriptionController.text,
       isActive: _isActive,
       newImages: _propertyImageFiles,
@@ -95,7 +104,9 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
 
     if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Failed to update property.')),
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Failed to update property.'),
+        ),
       );
       return;
     }
@@ -152,166 +163,253 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
-                              decoration: BoxDecoration(
-                                color: card,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: border),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x12000000),
-                                    offset: Offset(0, 3),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  _LabeledRow(
-                                    label: 'Price',
-                                    child: _TextFieldBox(
-                                      controller: _priceController,
-                                      hint: 'Type price',
-                                      keyboardType: const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                          RegExp(r'^\d*\.?\d{0,2}$'),
-                                        ),
-                                      ],
-                                      border: border,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _LabeledRow(
-                                    label: 'Property Location',
-                                    child: _TextFieldBox(
-                                      controller: _locationController,
-                                      hint: 'Paste location URL',
-                                      keyboardType: TextInputType.url,
-                                      border: border,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _LabeledRow(
-                                    label: 'Property Images',
-                                    child: _AttachmentField(
-                                      fileName: _propertyImageFiles.isEmpty
-                                          ? null
-                                          : '${_propertyImageFiles.length} images selected',
-                                      buttonLabel: 'Attach Images',
-                                      onTap: _pickPropertyImages,
-                                      border: border,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _LabeledRow(
-                                    label: 'Description',
-                                    alignTop: true,
-                                    child: Container(
-                                      height: 66,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF8F8F9),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: border),
-                                      ),
-                                      child: TextField(
-                                        controller: _descriptionController,
-                                        maxLines: null,
-                                        expands: true,
-                                        decoration: const InputDecoration(
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 8,
-                                          ),
-                                          border: InputBorder.none,
-                                          hintText: 'Description...',
-                                          hintStyle: TextStyle(
-                                            color: Color(0xFFD1D4D9),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  _LabeledRow(
-                                    label: 'Available',
-                                    forceInline: true,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: SizedBox(
-                                        height: 34,
-                                        child: FittedBox(
-                                          fit: BoxFit.contain,
-                                          child: Switch(
-                                            value: _isActive,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _isActive = value;
-                                              });
-                                            },
-                                            activeColor: Colors.white,
-                                            activeTrackColor: primary,
-                                            inactiveThumbColor: Colors.white,
-                                            inactiveTrackColor: const Color(0xFFB5BBC7),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _updateProperty,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  18,
+                                  14,
+                                  18,
                                 ),
-                                child: _isSubmitting
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
+                                decoration: BoxDecoration(
+                                  color: card,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: border),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12000000),
+                                      offset: Offset(0, 3),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    _LabeledRow(
+                                      label: 'Price',
+                                      child: _TextFieldBox(
+                                        controller: _priceController,
+                                        hint: 'Type price',
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^\d*\.?\d{0,2}$'),
                                           ),
-                                        ),
-                                      )
-                                    : const Text(
-                                        'Update Property',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
+                                        ],
+                                        border: border,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    if (_transactionType == 'rent') ...[
+                                      _LabeledRow(
+                                        label: 'Type of Rent',
+                                        child: _SelectField(
+                                          value: _rentType,
+                                          hint: 'Select rent type',
+                                          items: _rentTypes,
+                                          border: border,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _rentType = value;
+                                            });
+                                          },
                                         ),
                                       ),
+                                      const SizedBox(height: 14),
+                                    ],
+                                    _LabeledRow(
+                                      label: 'Property Images',
+                                      child: _AttachmentField(
+                                        fileName:
+                                            _propertyImageFiles.isEmpty
+                                                ? null
+                                                : '${_propertyImageFiles.length} images selected',
+                                        buttonLabel: 'Attach Images',
+                                        onTap: _pickPropertyImages,
+                                        border: border,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _LabeledRow(
+                                      label: 'Description',
+                                      alignTop: true,
+                                      child: Container(
+                                        height: 66,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8F8F9),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(color: border),
+                                        ),
+                                        child: TextField(
+                                          controller: _descriptionController,
+                                          maxLines: null,
+                                          expands: true,
+                                          decoration: const InputDecoration(
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
+                                            border: InputBorder.none,
+                                            hintText: 'Description...',
+                                            hintStyle: TextStyle(
+                                              color: Color(0xFFD1D4D9),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    _LabeledRow(
+                                      label: 'Available',
+                                      forceInline: true,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: SizedBox(
+                                          height: 34,
+                                          child: FittedBox(
+                                            fit: BoxFit.contain,
+                                            child: Switch(
+                                              value: _isActive,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _isActive = value;
+                                                });
+                                              },
+                                              activeColor: Colors.white,
+                                              activeTrackColor: primary,
+                                              inactiveThumbColor: Colors.white,
+                                              inactiveTrackColor: const Color(
+                                                0xFFB5BBC7,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 28),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 36,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      _isSubmitting ? null : _updateProperty,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child:
+                                      _isSubmitting
+                                          ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Text(
+                                            'Update Property',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectField extends StatelessWidget {
+  const _SelectField({
+    required this.value,
+    required this.hint,
+    required this.items,
+    required this.onChanged,
+    required this.border,
+  });
+
+  final String? value;
+  final String hint;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+  final Color border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F9),
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Color(0xFF1F2430),
+            size: 26,
+          ),
+          hint: Text(
+            hint,
+            style: const TextStyle(
+              color: Color(0xFFD1D4D9),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          style: const TextStyle(
+            color: Color(0xFF1F2430),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          dropdownColor: Colors.white,
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+          onChanged: onChanged,
         ),
       ),
     );
@@ -411,12 +509,12 @@ class _TextFieldBox extends StatelessWidget {
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFFD1D4D9),
-            fontSize: 14,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 12,
           ),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFFD1D4D9), fontSize: 14),
         ),
       ),
     );
@@ -454,7 +552,8 @@ class _AttachmentField extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: hasFile ? const Color(0xFFDDE9FF) : const Color(0xFFEDEFF2),
+              color:
+                  hasFile ? const Color(0xFFDDE9FF) : const Color(0xFFEDEFF2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -469,7 +568,8 @@ class _AttachmentField extends StatelessWidget {
               fileName ?? 'No image selected',
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: hasFile ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
+                color:
+                    hasFile ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
                 fontSize: 13.5,
                 fontWeight: hasFile ? FontWeight.w600 : FontWeight.w500,
               ),

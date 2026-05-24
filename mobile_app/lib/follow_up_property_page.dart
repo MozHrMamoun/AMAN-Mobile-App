@@ -19,7 +19,9 @@ class FollowUpPropertyPage extends StatefulWidget {
 }
 
 class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
-  final FollowUpPropertiesController _controller = FollowUpPropertiesController();
+  final FollowUpPropertiesController _controller =
+      FollowUpPropertiesController();
+  final TextEditingController _searchController = TextEditingController();
   late Future<FollowUpPropertiesResult> _future;
   bool _isDeleting = false;
   late ListingFilter _selectedFilter;
@@ -29,6 +31,16 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
     super.initState();
     _selectedFilter = widget.initialFilter;
     _future = _controller.loadOwnerProperties();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String _normalizeQuery(String value) {
+    return value.trim().toLowerCase();
   }
 
   Future<void> _refresh() async {
@@ -79,9 +91,9 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
     });
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
 
@@ -172,7 +184,8 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Text(
-                            result?.errorMessage ?? 'Failed to load properties.',
+                            result?.errorMessage ??
+                                'Failed to load properties.',
                             style: const TextStyle(
                               color: Color(0xFF1F2430),
                               fontSize: 16,
@@ -184,25 +197,23 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                       );
                     }
 
-                    final filteredItems = result.items.where((item) {
-                      if (_selectedFilter == ListingFilter.active) {
-                        return item.status == 'active';
-                      }
-                      return item.status != 'active';
-                    }).toList();
-
-                    if (filteredItems.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'No properties found.',
-                          style: TextStyle(
-                            color: Color(0xFF1F2430),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    }
+                    final filteredItems =
+                        result.items.where((item) {
+                          if (_selectedFilter == ListingFilter.active) {
+                            return item.status == 'active';
+                          }
+                          return item.status != 'active';
+                        }).toList();
+                    final searchQuery = _normalizeQuery(_searchController.text);
+                    final visibleItems =
+                        searchQuery.isEmpty
+                            ? filteredItems
+                            : filteredItems.where((item) {
+                              final haystack = _normalizeQuery(
+                                '${item.propertyType} ${item.propertyState} ${item.propertyCity} ${item.title}',
+                              );
+                              return haystack.contains(searchQuery);
+                            }).toList();
 
                     return RefreshIndicator(
                       onRefresh: _refresh,
@@ -218,30 +229,67 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                             },
                           ),
                           const SizedBox(height: 20),
-                          ...List.generate(filteredItems.length, (index) {
-                            final item = filteredItems[index];
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                bottom: index == filteredItems.length - 1 ? 0 : 24,
+                          _SearchFilterField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 20),
+                          if (filteredItems.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 56),
+                              child: Text(
+                                _selectedFilter == ListingFilter.active
+                                    ? 'No active properties found.'
+                                    : 'No inactive properties found.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFF1F2430),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              child: _FollowUpCard(
-                                item: item,
-                                isDeleting: _isDeleting,
-                                onUpdate: () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => UpdatePropertyPage(
-                                        propertyId: item.propertyId,
+                            )
+                          else if (visibleItems.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 56),
+                              child: Text(
+                                'No properties match your search.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF1F2430),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                          else
+                            ...List.generate(visibleItems.length, (index) {
+                              final item = visibleItems[index];
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      index == visibleItems.length - 1 ? 0 : 24,
+                                ),
+                                child: _FollowUpCard(
+                                  item: item,
+                                  isDeleting: _isDeleting,
+                                  onUpdate: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => UpdatePropertyPage(
+                                              propertyId: item.propertyId,
+                                            ),
                                       ),
-                                    ),
-                                  );
-                                  await _refresh();
-                                },
-                                onDelete: () => _deleteProperty(item.propertyId),
-                              ),
-                            );
-                          }),
+                                    );
+                                    await _refresh();
+                                  },
+                                  onDelete:
+                                      () => _deleteProperty(item.propertyId),
+                                ),
+                              );
+                            }),
                         ],
                       ),
                     );
@@ -250,6 +298,56 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchFilterField extends StatelessWidget {
+  const _SearchFilterField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD1D4D9)),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          hintText: 'Search by type, state, or city',
+          hintStyle: const TextStyle(
+            color: Color(0xFF98A2B3),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF1C2A4A),
+          ),
+          suffixIcon:
+              controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                    onPressed: () {
+                      controller.clear();
+                      onChanged('');
+                    },
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
         ),
       ),
     );
@@ -387,6 +485,9 @@ class _FollowUpCard extends StatelessWidget {
                 child: _ActionRow(
                   label: 'Update',
                   icon: Icons.edit_note_rounded,
+                  accentColor: const Color(0xFF355C7D),
+                  backgroundColor: const Color(0xFFEAF0F6),
+                  borderColor: const Color(0xFFD4DFEA),
                   onTap: onUpdate,
                 ),
               ),
@@ -406,6 +507,9 @@ class _FollowUpCard extends StatelessWidget {
                 child: _ActionRow(
                   label: isDeleting ? 'Deleting' : 'Delete',
                   icon: Icons.delete_rounded,
+                  accentColor: const Color(0xFF9A4B5A),
+                  backgroundColor: const Color(0xFFF8EDEF),
+                  borderColor: const Color(0xFFE8CDD4),
                   onTap: isDeleting ? null : onDelete,
                 ),
               ),
@@ -418,7 +522,11 @@ class _FollowUpCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -444,35 +552,59 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.label, required this.icon, this.onTap});
+  const _ActionRow({
+    required this.label,
+    required this.icon,
+    required this.accentColor,
+    required this.backgroundColor,
+    required this.borderColor,
+    this.onTap,
+  });
 
   final String label;
   final IconData icon;
+  final Color accentColor;
+  final Color backgroundColor;
+  final Color borderColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
+    final resolvedAccent = isEnabled ? accentColor : const Color(0xFF98A2B3);
+    final resolvedBackground =
+        isEnabled ? backgroundColor : const Color(0xFFF2F4F7);
+    final resolvedBorder = isEnabled ? borderColor : const Color(0xFFDDE3EA);
+
     return Align(
       alignment: Alignment.centerRight,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF1F2430),
-                  fontSize: 34 / 2,
-                  fontWeight: FontWeight.w700,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: resolvedBackground,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: resolvedBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: resolvedAccent, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: resolvedAccent,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Icon(icon, color: const Color(0xFF1C2A4A), size: 24),
-            ],
+              ],
+            ),
           ),
         ),
       ),
