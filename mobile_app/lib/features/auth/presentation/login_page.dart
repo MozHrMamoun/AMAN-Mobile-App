@@ -19,34 +19,48 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
   bool _isLoading = false;
 
   Future<void> _login() async {
+    FocusScope.of(context).unfocus();
+
     setState(() {
       _isLoading = true;
     });
 
-    final result = await _authController.login(
-      username: _usernameController.text,
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Login failed.')),
+    try {
+      final result = await _authController.login(
+        username: _usernameController.text,
+        password: _passwordController.text,
       );
-      return;
+
+      if (!mounted) return;
+
+      if (!result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.errorMessage ?? 'Login failed.')),
+        );
+        return;
+      }
+
+      AppSession.clearGuestMode();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => HomePageByRole.fromRole(result.role ?? 'seeker'),
+        ),
+        (_) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unexpected error while logging in. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-    AppSession.clearGuestMode();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => HomePageByRole.fromRole(result.role ?? 'seeker'),
-      ),
-      (_) => false,
-    );
   }
 
   Future<void> _showForgotPasswordDialog() async {
@@ -57,9 +71,9 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
 
     if (!mounted || resultMessage == null || resultMessage.isEmpty) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(resultMessage)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(resultMessage)));
   }
 
   @override
@@ -224,24 +238,25 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                      child:
+                          _isLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
                                 ),
                               ),
-                            )
-                          : const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                              ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -374,16 +389,17 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
             backgroundColor: const Color(0xFF1C2A4A),
             foregroundColor: Colors.white,
           ),
-          child: _isSending
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text('Send'),
+          child:
+              _isSending
+                  ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                  : const Text('Send'),
         ),
       ],
     );

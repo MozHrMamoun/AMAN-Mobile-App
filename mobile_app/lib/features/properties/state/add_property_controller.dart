@@ -4,10 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/property_repository.dart';
 
 class AddPropertyResult {
-  const AddPropertyResult._({
-    required this.success,
-    this.errorMessage,
-  });
+  const AddPropertyResult._({required this.success, this.errorMessage});
 
   final bool success;
   final String? errorMessage;
@@ -23,7 +20,7 @@ class AddPropertyResult {
 
 class AddPropertyController {
   AddPropertyController({PropertyRepository? repository})
-      : _repository = repository ?? PropertyRepository();
+    : _repository = repository ?? PropertyRepository();
 
   final PropertyRepository _repository;
 
@@ -49,19 +46,24 @@ class AddPropertyController {
     required XFile? certificateFile,
   }) async {
     final userId = _repository.currentUserId;
+    final isLand = propertyType == 'Land';
     if (userId == null) {
       return AddPropertyResult.error('Please login first.');
     }
 
     if (propertyType == null || propertyState == null || propertyCity == null) {
-      return AddPropertyResult.error('Please complete property type/state/city.');
+      return AddPropertyResult.error(
+        'Please complete property type/state/city.',
+      );
     }
 
     if (!isBuy && rentType == null) {
-      return AddPropertyResult.error('Type of rent is required for rent properties.');
+      return AddPropertyResult.error(
+        'Type of rent is required for rent properties.',
+      );
     }
 
-    if (bedrooms == null || bathrooms == null) {
+    if (!isLand && (bedrooms == null || bathrooms == null)) {
       return AddPropertyResult.error('Bedrooms and bathrooms are required.');
     }
 
@@ -78,7 +80,9 @@ class AddPropertyController {
     }
 
     if (propertyImages.isEmpty) {
-      return AddPropertyResult.error('Please attach at least one property image.');
+      return AddPropertyResult.error(
+        'Please attach at least one property image.',
+      );
     }
 
     if (locationUrl.trim().isEmpty) {
@@ -107,8 +111,8 @@ class AddPropertyController {
         propertyType: propertyType,
         propertyState: propertyState,
         propertyCity: propertyCity,
-        bedrooms: _parseRoomCount(bedrooms),
-        bathrooms: _parseRoomCount(bathrooms),
+        bedrooms: isLand ? null : _parseRoomCount(bedrooms),
+        bathrooms: isLand ? null : _parseRoomCount(bathrooms),
         price: price,
         areaSqm: area,
         locationUrl: locationUrl.trim(),

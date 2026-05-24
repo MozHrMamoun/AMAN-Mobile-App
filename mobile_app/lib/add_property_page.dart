@@ -41,8 +41,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final List<String> _rentTypes = ['Monthly', 'Yearly'];
   final List<String> _numbers = ['1', '2', '3', '4', '5+'];
 
+  bool get _isLandSelected => _propertyType == 'Land';
+
   List<String> get _availableCities =>
-      _propertyState == null ? const [] : (CityData.citiesByState[_propertyState] ?? const []);
+      _propertyState == null
+          ? const []
+          : (CityData.citiesByState[_propertyState] ?? const []);
 
   @override
   void initState() {
@@ -69,7 +73,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (raw == null) return;
     try {
       final Map<String, dynamic> data = jsonDecode(raw);
-      final List<dynamic> images = (data['propertyImages'] as List<dynamic>? ?? const []);
+      final List<dynamic> images =
+          (data['propertyImages'] as List<dynamic>? ?? const []);
       final String? cert = data['certificateFile'] as String?;
       setState(() {
         _isBuySelected = (data['isBuy'] as bool?) ?? true;
@@ -83,14 +88,16 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _areaController.text = (data['area'] as String?) ?? '';
         _locationUrlController.text = (data['locationUrl'] as String?) ?? '';
         _descriptionController.text = (data['description'] as String?) ?? '';
-        _propertyImageFiles = images
-            .whereType<String>()
-            .where((path) => path.isNotEmpty && File(path).existsSync())
-            .map(XFile.new)
-            .toList();
-        _certificateFile = (cert != null && cert.isNotEmpty && File(cert).existsSync())
-            ? XFile(cert)
-            : null;
+        _propertyImageFiles =
+            images
+                .whereType<String>()
+                .where((path) => path.isNotEmpty && File(path).existsSync())
+                .map(XFile.new)
+                .toList();
+        _certificateFile =
+            (cert != null && cert.isNotEmpty && File(cert).existsSync())
+                ? XFile(cert)
+                : null;
       });
     } catch (_) {
       // Ignore corrupted draft.
@@ -140,7 +147,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<void> _pickCertificateImage() async {
-    final XFile? picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    final XFile? picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+    );
     if (picked != null) {
       setState(() {
         _certificateFile = picked;
@@ -164,7 +173,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     });
     await _saveDraft();
   }
-
 
   Future<void> _addProperty() async {
     setState(() {
@@ -195,7 +203,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
     if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Failed to add property.')),
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Failed to add property.'),
+        ),
       );
       return;
     }
@@ -394,7 +404,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                 border: border,
                                 hintColor: hint,
                                 onChanged: (v) {
-                                  setState(() => _propertyType = v);
+                                  setState(() {
+                                    _propertyType = v;
+                                    if (_isLandSelected) {
+                                      _bedrooms = null;
+                                      _bathrooms = null;
+                                    }
+                                  });
                                   _saveDraft();
                                 },
                               ),
@@ -411,7 +427,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                 onChanged: (v) {
                                   setState(() {
                                     _propertyState = v;
-                                    if (!_availableCities.contains(_propertyCity)) {
+                                    if (!_availableCities.contains(
+                                      _propertyCity,
+                                    )) {
                                       _propertyCity = null;
                                     }
                                   });
@@ -424,9 +442,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                               label: 'Property City',
                               child: _SelectField(
                                 value: _propertyCity,
-                                hint: _propertyState == null
-                                    ? 'Select state first'
-                                    : 'Place Holder...',
+                                hint:
+                                    _propertyState == null
+                                        ? 'Select state first'
+                                        : 'Place Holder...',
                                 items: _availableCities,
                                 border: border,
                                 hintColor: hint,
@@ -440,11 +459,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             _FieldRow(
                               label: 'Bedrooms',
                               child: _SelectField(
-                                value: _bedrooms,
-                                hint: '4',
+                                value: _isLandSelected ? null : _bedrooms,
+                                hint:
+                                    _isLandSelected ? 'Not used for land' : '4',
                                 items: _numbers,
                                 border: border,
                                 hintColor: hint,
+                                enabled: !_isLandSelected,
                                 onChanged: (v) {
                                   setState(() => _bedrooms = v);
                                   _saveDraft();
@@ -455,11 +476,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             _FieldRow(
                               label: 'Bathrooms',
                               child: _SelectField(
-                                value: _bathrooms,
-                                hint: '4',
+                                value: _isLandSelected ? null : _bathrooms,
+                                hint:
+                                    _isLandSelected ? 'Not used for land' : '4',
                                 items: _numbers,
                                 border: border,
                                 hintColor: hint,
+                                enabled: !_isLandSelected,
                                 onChanged: (v) {
                                   setState(() => _bathrooms = v);
                                   _saveDraft();
@@ -473,7 +496,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                 controller: _priceController,
                                 hint: 'Type price',
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                                 border: border,
                                 suffixText: 'SDG',
                               ),
@@ -484,9 +509,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                               child: _TextFieldBox(
                                 controller: _areaController,
                                 hint: 'Type area',
-                                keyboardType: const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                     RegExp(r'^\d*\.?\d{0,2}$'),
@@ -510,9 +536,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             _FieldRow(
                               label: 'Property Images',
                               child: _AttachmentField(
-                                fileName: _propertyImageFiles.isEmpty
-                                    ? null
-                                    : '${_propertyImageFiles.length} images selected',
+                                fileName:
+                                    _propertyImageFiles.isEmpty
+                                        ? null
+                                        : '${_propertyImageFiles.length} images selected',
                                 buttonLabel: 'Attach Images',
                                 onTap: _pickPropertyImage,
                                 border: border,
@@ -525,10 +552,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                 child: ReorderableListView.builder(
                                   scrollDirection: Axis.horizontal,
                                   onReorder: _reorderPropertyImages,
-                                  proxyDecorator: (child, _, __) => Material(
-                                    color: Colors.transparent,
-                                    child: child,
-                                  ),
+                                  proxyDecorator:
+                                      (child, _, __) => Material(
+                                        color: Colors.transparent,
+                                        child: child,
+                                      ),
                                   itemCount: _propertyImageFiles.length,
                                   itemBuilder: (context, index) {
                                     final file = _propertyImageFiles[index];
@@ -537,12 +565,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                       index: index,
                                       child: Container(
                                         margin: EdgeInsets.only(
-                                          right: index == _propertyImageFiles.length - 1 ? 0 : 10,
+                                          right:
+                                              index ==
+                                                      _propertyImageFiles
+                                                              .length -
+                                                          1
+                                                  ? 0
+                                                  : 10,
                                         ),
                                         child: Stack(
                                           children: [
                                             ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                               child: Image.file(
                                                 File(file.path),
                                                 width: 82,
@@ -555,20 +590,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                                 left: 6,
                                                 top: 6,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: const Color(0xFF1C2A4A),
-                                                    borderRadius: BorderRadius.circular(6),
+                                                    color: const Color(
+                                                      0xFF1C2A4A,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
                                                   ),
                                                   child: const Text(
                                                     'Cover',
                                                     style: TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
                                                   ),
                                                 ),
@@ -577,13 +619,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                               right: 4,
                                               top: 4,
                                               child: InkWell(
-                                                onTap: () => _removePropertyImage(index),
+                                                onTap:
+                                                    () => _removePropertyImage(
+                                                      index,
+                                                    ),
                                                 child: Container(
                                                   width: 22,
                                                   height: 22,
                                                   decoration: BoxDecoration(
                                                     color: Colors.black54,
-                                                    borderRadius: BorderRadius.circular(11),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          11,
+                                                        ),
                                                   ),
                                                   child: const Icon(
                                                     Icons.close_rounded,
@@ -684,24 +732,26 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                child: _isSaving
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
+                                child:
+                                    _isSaving
+                                        ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                        : const Text(
+                                          'Add',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
                                           ),
                                         ),
-                                      )
-                                    : const Text(
-                                        'Add',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15,
-                                        ),
-                                      ),
                               ),
                             ),
                           ),
@@ -755,7 +805,8 @@ class _FieldRow extends StatelessWidget {
         }
 
         return Row(
-          crossAxisAlignment: alignTop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          crossAxisAlignment:
+              alignTop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
             Expanded(
               flex: 4,
@@ -824,6 +875,7 @@ class _SelectField extends StatelessWidget {
     required this.onChanged,
     required this.border,
     required this.hintColor,
+    this.enabled = true,
   });
 
   final String? value;
@@ -832,6 +884,7 @@ class _SelectField extends StatelessWidget {
   final ValueChanged<String?> onChanged;
   final Color border;
   final Color hintColor;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -839,43 +892,46 @@ class _SelectField extends StatelessWidget {
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F9),
-        border: Border.all(color: border),
+        color: enabled ? const Color(0xFFF8F8F9) : const Color(0xFFEEF0F3),
+        border: Border.all(color: enabled ? border : const Color(0xFFE1E4E8)),
         borderRadius: BorderRadius.circular(6),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF1F2430),
-            size: 26,
+          icon: Icon(
+            enabled
+                ? Icons.keyboard_arrow_down_rounded
+                : Icons.lock_outline_rounded,
+            color: enabled ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
+            size: enabled ? 26 : 20,
           ),
           hint: Text(
             hint,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: hintColor,
+              color: enabled ? hintColor : const Color(0xFF9AA1AD),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
-          style: const TextStyle(
-            color: Color(0xFF1F2430),
+          style: TextStyle(
+            color: enabled ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
           dropdownColor: Colors.white,
-          items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item, overflow: TextOverflow.ellipsis),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+          onChanged: enabled ? onChanged : null,
         ),
       ),
     );
@@ -914,12 +970,12 @@ class _TextFieldBox extends StatelessWidget {
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFFD1D4D9),
-            fontSize: 14,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 12,
           ),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFFD1D4D9), fontSize: 14),
           suffixText: suffixText,
           suffixStyle: const TextStyle(
             color: Color(0xFF9AA1AD),
@@ -963,7 +1019,8 @@ class _AttachmentField extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: hasFile ? const Color(0xFFDDE9FF) : const Color(0xFFEDEFF2),
+              color:
+                  hasFile ? const Color(0xFFDDE9FF) : const Color(0xFFEDEFF2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -978,7 +1035,8 @@ class _AttachmentField extends StatelessWidget {
               fileName ?? 'No image selected',
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: hasFile ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
+                color:
+                    hasFile ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
                 fontSize: 13.5,
                 fontWeight: hasFile ? FontWeight.w600 : FontWeight.w500,
               ),

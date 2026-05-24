@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'chat_detail_page.dart';
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
+import 'core/city_data.dart';
 import 'edit_information_page.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'features/properties/state/seeker_home_controller.dart';
@@ -34,7 +35,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   int _page = 0;
-  static const int _pageSize = 20;
+  static const int _pageSize = 5000;
 
   List<SeekerHomePropertyItem> _allProperties = const [];
   List<SeekerHomePropertyItem> _filteredProperties = const [];
@@ -47,9 +48,13 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   }
 
   List<String> get _cityOptions {
-    final set = _allProperties.map((e) => e.propertyCity).toSet().toList();
-    set.sort();
-    return set;
+    final cities = CityData.allCities.toSet().toList();
+    cities.sort();
+    return cities;
+  }
+
+  String _normalizeFilterValue(String value) {
+    return value.trim().toLowerCase();
   }
 
   @override
@@ -122,13 +127,21 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
   }
 
   void _applyFilters() {
-    _filteredProperties = _allProperties.where((property) {
-      final cityMatch =
-          _selectedCity == null || property.propertyCity == _selectedCity;
-      final typeMatch =
-          _selectedType == null || property.propertyType == _selectedType;
-      return cityMatch && typeMatch;
-    }).toList();
+    final selectedCity =
+        _selectedCity == null ? null : _normalizeFilterValue(_selectedCity!);
+    final selectedType =
+        _selectedType == null ? null : _normalizeFilterValue(_selectedType!);
+
+    _filteredProperties =
+        _allProperties.where((property) {
+          final cityMatch =
+              selectedCity == null ||
+              _normalizeFilterValue(property.propertyCity) == selectedCity;
+          final typeMatch =
+              selectedType == null ||
+              _normalizeFilterValue(property.propertyType) == selectedType;
+          return cityMatch && typeMatch;
+        }).toList();
   }
 
   Future<void> _loadNotificationCount() async {
@@ -185,9 +198,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 
     if (!result.success || result.chatId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Failed to open chat.'),
-        ),
+        SnackBar(content: Text(result.errorMessage ?? 'Failed to open chat.')),
       );
       return;
     }
@@ -195,11 +206,12 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChatDetailPage(
-          chatId: result.chatId!,
-          peerName: result.peerName ?? 'Owner',
-          propertyId: propertyId,
-        ),
+        builder:
+            (_) => ChatDetailPage(
+              chatId: result.chatId!,
+              peerName: result.peerName ?? 'Owner',
+              propertyId: propertyId,
+            ),
       ),
     );
   }
@@ -227,13 +239,13 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
           );
           break;
         case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MessagePage(initialRole: 'seeker'),
-          ),
-        );
-        break;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const MessagePage(initialRole: 'seeker'),
+            ),
+          );
+          break;
         case 3:
           Navigator.pushReplacement(
             context,
@@ -254,126 +266,131 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
           ),
           child: Container(
             color: page,
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
                     ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFF1F2430),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Color(0xFF1F2430),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () => _loadProperties(reset: true),
-                        child: ListView(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
-                          children: [
-                            _TopIconsRow(
-                              onNotificationTap: _openNotifications,
-                              notificationCount: _unreadNotifications,
-                              onProfileTap: () {
-                                if (AppSession.isGuestMode) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Please login to use this feature.'),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const EditInformationPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _FilterDropdown(
-                                    hint: 'Property City',
-                                    value: _selectedCity,
-                                    items: _cityOptions,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedCity = value;
-                                        _applyFilters();
-                                      });
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 18),
-                                Expanded(
-                                  child: _FilterDropdown(
-                                    hint: 'Property Type',
-                                    value: _selectedType,
-                                    items: _typeOptions,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedType = value;
-                                        _applyFilters();
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            if (_filteredProperties.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.only(top: 40),
-                                child: Text(
-                                  'No properties found for selected filters.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Color(0xFF1F2430),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            else
-                              ..._filteredProperties.map(
-                                (property) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 24),
-                                  child: _PropertyCard(
-                                    property: property,
-                                    onContactTap: () => _openOwnerChat(
-                                      property.ownerUserId,
-                                      propertyId: property.propertyId,
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => PropertyDetailPage(
-                                            propertyId: property.propertyId,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            if (_isLoadingMore)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Center(child: CircularProgressIndicator()),
-                              ),
-                          ],
+                          textAlign: TextAlign.center,
                         ),
                       ),
+                    )
+                    : RefreshIndicator(
+                      onRefresh: () => _loadProperties(reset: true),
+                      child: ListView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
+                        children: [
+                          _TopIconsRow(
+                            onNotificationTap: _openNotifications,
+                            notificationCount: _unreadNotifications,
+                            onProfileTap: () {
+                              if (AppSession.isGuestMode) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please login to use this feature.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EditInformationPage(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _FilterDropdown(
+                                  hint: 'Property City',
+                                  value: _selectedCity,
+                                  items: _cityOptions,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedCity = value;
+                                      _applyFilters();
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              Expanded(
+                                child: _FilterDropdown(
+                                  hint: 'Property Type',
+                                  value: _selectedType,
+                                  items: _typeOptions,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedType = value;
+                                      _applyFilters();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          if (_filteredProperties.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 40),
+                              child: Text(
+                                'No properties found for selected filters.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF1F2430),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                          else
+                            ..._filteredProperties.map(
+                              (property) => Padding(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                child: _PropertyCard(
+                                  property: property,
+                                  onContactTap:
+                                      () => _openOwnerChat(
+                                        property.ownerUserId,
+                                        propertyId: property.propertyId,
+                                      ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => PropertyDetailPage(
+                                              propertyId: property.propertyId,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          if (_isLoadingMore)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                        ],
+                      ),
+                    ),
           ),
         ),
       ),
@@ -436,47 +453,96 @@ class _TopIconsRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          onPressed: onNotificationTap,
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(
-                Icons.notifications,
-                color: Color(0xFF1C2A4A),
-                size: 30,
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onNotificationTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7DBE2)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C1C2A4A),
+                    offset: Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
-              if (notificationCount > 0)
-                Positioned(
-                  right: -2,
-                  top: -2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB2455D),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      notificationCount > 99
-                          ? '99+'
-                          : notificationCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Color(0xFF1C2A4A),
+                    size: 26,
+                  ),
+                  if (notificationCount > 0)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 19,
+                          minHeight: 19,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB2455D),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          notificationCount > 99
+                              ? '99+'
+                              : notificationCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
-        IconButton(
-          onPressed: onProfileTap,
-          icon: const Icon(Icons.account_circle, color: Color(0xFF1C2A4A), size: 34),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onProfileTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7DBE2)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C1C2A4A),
+                    offset: Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.manage_accounts_rounded,
+                color: Color(0xFF1C2A4A),
+                size: 26,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -532,14 +598,15 @@ class _FilterDropdown extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
           dropdownColor: Colors.white,
-          items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item, overflow: TextOverflow.ellipsis),
-                ),
-              )
-              .toList(),
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
           onChanged: onChanged,
         ),
       ),
@@ -587,28 +654,30 @@ class _PropertyCard extends StatelessWidget {
                 child: SizedBox(
                   width: 160,
                   height: 120,
-                  child: property.imageUrl == null
-                      ? Container(
-                          color: const Color(0xFFE7E7E8),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Color(0xFF9AA1AD),
-                          ),
-                        )
-                      : Image.network(
-                          property.imageUrl!,
-                          fit: BoxFit.cover,
-                          cacheWidth: 360,
-                          errorBuilder: (_, __, ___) => Container(
+                  child:
+                      property.imageUrl == null
+                          ? Container(
                             color: const Color(0xFFE7E7E8),
                             alignment: Alignment.center,
                             child: const Icon(
-                              Icons.broken_image_outlined,
+                              Icons.image_not_supported_outlined,
                               color: Color(0xFF9AA1AD),
                             ),
+                          )
+                          : Image.network(
+                            property.imageUrl!,
+                            fit: BoxFit.cover,
+                            cacheWidth: 360,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  color: const Color(0xFFE7E7E8),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Color(0xFF9AA1AD),
+                                  ),
+                                ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(width: 10),

@@ -4,7 +4,7 @@ import '../../../core/supabase_client_provider.dart';
 
 class AuthRepository {
   AuthRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   static const String passwordResetRedirectUrl = 'aman://reset-password';
 
@@ -16,8 +16,8 @@ class AuthRepository {
 
     return _client
         .from('user')
-        .select('email, role')
-        .ilike('username', normalized)
+        .select('email, role, user_id')
+        .eq('username', normalized)
         .maybeSingle();
   }
 
@@ -25,10 +25,7 @@ class AuthRepository {
     required String email,
     required String password,
   }) {
-    return _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    return _client.auth.signInWithPassword(email: email, password: password);
   }
 
   Future<AuthResponse> signUp({
@@ -36,16 +33,10 @@ class AuthRepository {
     required String password,
     required Map<String, dynamic> data,
   }) {
-    return _client.auth.signUp(
-      email: email,
-      password: password,
-      data: data,
-    );
+    return _client.auth.signUp(email: email, password: password, data: data);
   }
 
-  Future<void> sendPasswordResetEmail({
-    required String email,
-  }) {
+  Future<void> sendPasswordResetEmail({required String email}) {
     return _client.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
       redirectTo: passwordResetRedirectUrl,
@@ -74,11 +65,12 @@ class AuthRepository {
   }
 
   Future<String?> getRoleByUserId(String userId) async {
-    final user = await _client
-        .from('user')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+    final user =
+        await _client
+            .from('user')
+            .select('role')
+            .eq('user_id', userId)
+            .maybeSingle();
 
     return (user?['role'] as String?)?.toLowerCase();
   }

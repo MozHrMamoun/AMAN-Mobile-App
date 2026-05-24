@@ -210,75 +210,81 @@ class _SearchResultPageState extends State<SearchResultPage> {
                       const SizedBox(height: 22),
                       const SizedBox(height: 46),
                       Expanded(
-                        child: _isLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : _errorMessage != null
+                        child:
+                            _isLoading
+                                ? const Center(
+                                  child: CircularProgressIndicator(),
+                                )
+                                : _errorMessage != null
                                 ? Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(24),
-                                      child: Text(
-                                        _errorMessage!,
-                                        style: const TextStyle(
-                                          color: Color(0xFF1F2430),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        textAlign: TextAlign.center,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: const TextStyle(
+                                        color: Color(0xFF1F2430),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  )
+                                  ),
+                                )
                                 : _items.isEmpty
-                                    ? const Center(
-                                        child: Text(
-                                          'No properties found.',
-                                          style: TextStyle(
-                                            color: Color(0xFF1F2430),
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                ? const Center(
+                                  child: Text(
+                                    'No properties found.',
+                                    style: TextStyle(
+                                      color: Color(0xFF1F2430),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                                : RefreshIndicator(
+                                  onRefresh: () => _load(reset: true),
+                                  child: GridView.builder(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      0,
+                                      16,
+                                      16,
+                                    ),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          crossAxisSpacing: 16,
+                                          mainAxisSpacing: 16,
+                                          mainAxisExtent: 340,
                                         ),
-                                      )
-                                    : RefreshIndicator(
-                                        onRefresh: () => _load(reset: true),
-                                        child: GridView.builder(
-                                          controller: _scrollController,
-                                          padding: const EdgeInsets.fromLTRB(
-                                            16,
-                                            0,
-                                            16,
-                                            16,
-                                          ),
-                                          gridDelegate:
-                                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 2,
-                                                crossAxisSpacing: 16,
-                                                mainAxisSpacing: 16,
-                                                mainAxisExtent: 340,
-                                              ),
-                                          itemCount: _items.length + (_isLoadingMore ? 1 : 0),
-                                          itemBuilder: (context, index) {
-                                            if (index >= _items.length) {
-                                              return const Center(
-                                                child: CircularProgressIndicator(),
-                                              );
-                                            }
-                                            final item = _items[index];
-                                            return _ResultCard(
-                                              item: item,
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => PropertyDetailPage(
-                                                      propertyId: item.propertyId,
-                                                    ),
+                                    itemCount:
+                                        _items.length +
+                                        (_isLoadingMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index >= _items.length) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+                                      final item = _items[index];
+                                      return _ResultCard(
+                                        item: item,
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) => PropertyDetailPage(
+                                                    propertyId: item.propertyId,
                                                   ),
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
                       ),
                     ],
                   ),
@@ -347,53 +353,101 @@ class _TopIconsRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          onPressed: onNotificationTap,
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(
-                Icons.notifications,
-                color: Color(0xFF1C2A4A),
-                size: 30,
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onNotificationTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7DBE2)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C1C2A4A),
+                    offset: Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
-              if (notificationCount > 0)
-                Positioned(
-                  right: -2,
-                  top: -2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB2455D),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      notificationCount > 99
-                          ? '99+'
-                          : notificationCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Color(0xFF1C2A4A),
+                    size: 26,
+                  ),
+                  if (notificationCount > 0)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 19,
+                          minHeight: 19,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB2455D),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          notificationCount > 99
+                              ? '99+'
+                              : notificationCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
-        IconButton(
-          onPressed: onProfileTap,
-          icon: const Icon(Icons.account_circle, color: Color(0xFF1C2A4A), size: 34),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onProfileTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7DBE2)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C1C2A4A),
+                    offset: Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.manage_accounts_rounded,
+                color: Color(0xFF1C2A4A),
+                size: 26,
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 }
-
 
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.item, required this.onTap});
@@ -430,28 +484,30 @@ class _ResultCard extends StatelessWidget {
                 child: SizedBox(
                   height: 156,
                   width: double.infinity,
-                  child: item.imageUrl == null
-                      ? Container(
-                          color: const Color(0xFFE7E7E8),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Color(0xFF9AA1AD),
-                          ),
-                        )
-                      : Image.network(
-                          item.imageUrl!,
-                          fit: BoxFit.cover,
-                          cacheWidth: 320,
-                          errorBuilder: (_, __, ___) => Container(
+                  child:
+                      item.imageUrl == null
+                          ? Container(
                             color: const Color(0xFFE7E7E8),
                             alignment: Alignment.center,
                             child: const Icon(
-                              Icons.broken_image_outlined,
+                              Icons.image_not_supported_outlined,
                               color: Color(0xFF9AA1AD),
                             ),
+                          )
+                          : Image.network(
+                            item.imageUrl!,
+                            fit: BoxFit.cover,
+                            cacheWidth: 320,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  color: const Color(0xFFE7E7E8),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Color(0xFF9AA1AD),
+                                  ),
+                                ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(height: 10),
