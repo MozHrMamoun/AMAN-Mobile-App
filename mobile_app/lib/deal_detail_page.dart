@@ -562,7 +562,7 @@ class _DealDetailPageState extends State<DealDetailPage> {
                     ),
                   )
                 : const Text(
-                    'Confirm Deal Done',
+                    'Confirm Completion',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
           ),
@@ -605,7 +605,7 @@ class _DealDetailPageState extends State<DealDetailPage> {
                   ),
                 )
               : const Text(
-                  'Mark Deal Done',
+                  'Request Completion',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
         ),

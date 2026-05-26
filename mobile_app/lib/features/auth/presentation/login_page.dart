@@ -17,12 +17,15 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
   final _passwordController = TextEditingController();
   final _authController = AuthController();
   bool _isLoading = false;
+  String? _authMessage;
+  bool _isAuthMessageError = false;
 
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
 
     setState(() {
       _isLoading = true;
+      _authMessage = null;
     });
 
     try {
@@ -34,9 +37,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       if (!mounted) return;
 
       if (!result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.errorMessage ?? 'Login failed.')),
-        );
+        setState(() {
+          _authMessage = result.errorMessage ?? 'Login failed.';
+          _isAuthMessageError = true;
+        });
         return;
       }
 
@@ -49,11 +53,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unexpected error while logging in. Please try again.'),
-        ),
-      );
+      setState(() {
+        _authMessage = 'Unexpected error while logging in. Please try again.';
+        _isAuthMessageError = true;
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -64,16 +67,10 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
   }
 
   Future<void> _showForgotPasswordDialog() async {
-    final resultMessage = await showDialog<String>(
+    await showDialog<void>(
       context: context,
       builder: (_) => _ForgotPasswordDialog(controller: _authController),
     );
-
-    if (!mounted || resultMessage == null || resultMessage.isEmpty) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(resultMessage)));
   }
 
   @override
@@ -136,6 +133,13 @@ class _AuthLoginPageState extends State<AuthLoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_authMessage != null) ...[
+                    _InlineFeedbackCard(
+                      message: _authMessage!,
+                      isError: _isAuthMessageError,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   const Text(
                     'User Name',
                     style: TextStyle(
@@ -321,12 +325,14 @@ class _ForgotPasswordDialog extends StatefulWidget {
 }
 
 class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   bool _isSending = false;
+  String? _message;
+  bool _isError = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -335,23 +341,23 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
     setState(() {
       _isSending = true;
+      _message = null;
     });
 
-    final result = await widget.controller.sendPasswordResetEmail(
-      email: _emailController.text,
+    final result = await widget.controller.sendPasswordResetByUsername(
+      username: _usernameController.text,
     );
 
     if (!mounted) return;
 
     setState(() {
       _isSending = false;
+      _message =
+          result.success
+              ? 'Password reset email sent. Please check the email linked to this username.'
+              : (result.errorMessage ?? 'Failed to send reset email.');
+      _isError = !result.success;
     });
-
-    Navigator.of(context).pop(
-      result.success
-          ? 'Password reset email sent. Please check your inbox.'
-          : (result.errorMessage ?? 'Failed to send reset email.'),
-    );
   }
 
   @override
@@ -362,15 +368,21 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_message != null) ...[
+            _InlineFeedbackCard(
+              message: _message!,
+              isError: _isError,
+            ),
+            const SizedBox(height: 14),
+          ],
           const Text(
-            'Enter the email linked to your account and we will send you a reset link.',
+            'Enter the username linked to your account and we will send a reset link to its email.',
           ),
           const SizedBox(height: 14),
           TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
+            controller: _usernameController,
             decoration: InputDecoration(
-              hintText: 'Enter your email',
+              hintText: 'Enter your username',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -402,6 +414,58 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                   : const Text('Send'),
         ),
       ],
+    );
+  }
+}
+
+class _InlineFeedbackCard extends StatelessWidget {
+  const _InlineFeedbackCard({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final background =
+        isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
+    final border =
+        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

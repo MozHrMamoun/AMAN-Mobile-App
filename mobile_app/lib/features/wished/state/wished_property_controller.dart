@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/wished_property_repository.dart';
-import '../../notifications/state/notification_controller.dart';
 
 class SaveWishResult {
   const SaveWishResult._({required this.success, this.errorMessage});
@@ -17,13 +16,9 @@ class SaveWishResult {
 class WishedPropertyController {
   WishedPropertyController({
     WishedPropertyRepository? repository,
-    NotificationController? notificationController,
-  })  : _repository = repository ?? WishedPropertyRepository(),
-        _notificationController =
-            notificationController ?? NotificationController();
+  }) : _repository = repository ?? WishedPropertyRepository();
 
   final WishedPropertyRepository _repository;
-  final NotificationController _notificationController;
 
   int? _parseCount(String? value) {
     if (value == null || value.trim().isEmpty) return null;
@@ -38,6 +33,7 @@ class WishedPropertyController {
 
   Future<SaveWishResult> saveWish({
     required bool isBuy,
+    required String? rentType,
     required String? propertyType,
     required String? city,
     required String? bedrooms,
@@ -52,6 +48,9 @@ class WishedPropertyController {
     if (propertyType == null || propertyType.isEmpty || city == null || city.isEmpty) {
       return SaveWishResult.error('Please select property type and city.');
     }
+    if (!isBuy && (rentType == null || rentType.trim().isEmpty)) {
+      return SaveWishResult.error('Please select type of rent.');
+    }
 
     final price = _parsePrice(priceText);
     if (priceText.trim().isNotEmpty && price == null) {
@@ -62,18 +61,13 @@ class WishedPropertyController {
       await _repository.insertWish(
         seekerId: seekerId,
         transactionType: isBuy ? 'buy' : 'rent',
+        rentType: isBuy ? null : rentType?.trim().toLowerCase(),
         propertyType: propertyType,
         city: city,
         bedrooms: _parseCount(bedrooms),
         bathrooms: _parseCount(bathrooms),
         price: price,
       );
-
-      try {
-        await _notificationController.runAiMatchingOnly();
-      } catch (_) {
-        // Ignore AI match failures to keep saving flow smooth.
-      }
 
       return SaveWishResult.success();
     } on PostgrestException catch (e) {

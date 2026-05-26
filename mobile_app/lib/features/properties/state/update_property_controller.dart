@@ -10,6 +10,7 @@ class UpdatePropertyData {
     required this.rentType,
     required this.description,
     required this.isActive,
+    required this.imageUrls,
   });
 
   final String price;
@@ -17,6 +18,7 @@ class UpdatePropertyData {
   final String? rentType;
   final String description;
   final bool isActive;
+  final List<String> imageUrls;
 }
 
 class UpdatePropertyResult {
@@ -60,6 +62,8 @@ class UpdatePropertyController {
         return UpdatePropertyResult.error('Property not found.');
       }
 
+      final imageUrls = await _repository.fetchPropertyImageUrls(propertyId);
+
       final dynamic priceRaw = row['price'];
       final transactionType =
           (row['transaction_type']?.toString().trim().toLowerCase() ?? '');
@@ -79,6 +83,7 @@ class UpdatePropertyController {
               rentTypeRaw == null || rentTypeRaw.isEmpty ? null : rentTypeRaw,
           description: descriptionRaw?.toString() ?? '',
           isActive: isActive,
+          imageUrls: imageUrls,
         ),
       );
     } on PostgrestException catch (e) {
@@ -146,8 +151,9 @@ class UpdatePropertyController {
           );
           urls.add(url);
         }
-        await _repository.insertPropertyImages(
+        await _repository.replacePropertyImages(
           propertyId: propertyId,
+          ownerId: userId,
           imageUrls: urls,
         );
       }

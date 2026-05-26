@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/input_validators.dart';
+import '../../notifications/state/notification_controller.dart';
 import '../data/auth_repository.dart';
 
 class AuthActionResult {
@@ -33,10 +34,15 @@ class AuthActionResult {
 }
 
 class AuthController {
-  AuthController({AuthRepository? repository})
-      : _repository = repository ?? AuthRepository();
+  AuthController({
+    AuthRepository? repository,
+    NotificationController? notificationController,
+  })  : _repository = repository ?? AuthRepository(),
+        _notificationController =
+            notificationController ?? NotificationController();
 
   final AuthRepository _repository;
+  final NotificationController _notificationController;
 
   Future<AuthActionResult> login({
     required String username,
@@ -68,6 +74,14 @@ class AuthController {
       final roleFromMetadata =
           (user.userMetadata?['role'] as String?)?.toLowerCase();
       final role = roleFromDb ?? roleFromProfile ?? roleFromMetadata ?? 'seeker';
+
+      if (role == 'seeker') {
+        try {
+          await _notificationController.runAiMatchingOnly();
+        } catch (_) {
+          // Ignore match trigger errors so login can still succeed.
+        }
+      }
 
       return AuthActionResult.success(role: role);
     } on AuthException catch (error) {
@@ -167,20 +181,29 @@ class AuthController {
     }
   }
 
-  Future<AuthActionResult> sendPasswordResetEmail({
-    required String email,
+  Future<AuthActionResult> sendPasswordResetByUsername({
+    required String username,
   }) async {
-    final normalizedEmail = email.trim().toLowerCase();
-    final emailError = InputValidators.validateEmail(normalizedEmail);
-    if (emailError != null) {
-      return AuthActionResult.error(emailError);
+    final normalizedUsername = username.trim().toLowerCase();
+    if (normalizedUsername.isEmpty) {
+      return AuthActionResult.error('Please enter your username.');
     }
 
     try {
-      await _repository.sendPasswordResetEmail(email: normalizedEmail);
+      final profile = await _repository.findUserByUsername(normalizedUsername);
+      final email = (profile?['email'] as String?)?.trim().toLowerCase();
+      if (email == null || email.isEmpty) {
+        return AuthActionResult.error('Username not found.');
+      }
+
+      await _repository.sendPasswordResetEmail(email: email);
       return AuthActionResult.success();
     } on AuthException catch (error) {
       return AuthActionResult.error(error.message);
+    } on PostgrestException {
+      return AuthActionResult.error(
+        'User table is required for username password reset.',
+      );
     } catch (_) {
       return AuthActionResult.error(
         'Unexpected error while sending reset email.',

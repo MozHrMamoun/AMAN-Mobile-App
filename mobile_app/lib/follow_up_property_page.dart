@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'features/properties/state/follow_up_properties_controller.dart';
 import 'owner_home_page.dart';
+import 'property_detail_page.dart';
 import 'update_property_page.dart';
 
 enum ListingFilter { active, inactive }
@@ -23,7 +24,7 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
       FollowUpPropertiesController();
   final TextEditingController _searchController = TextEditingController();
   late Future<FollowUpPropertiesResult> _future;
-  bool _isDeleting = false;
+  int? _deletingPropertyId;
   late ListingFilter _selectedFilter;
 
   @override
@@ -80,14 +81,14 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
     if (confirmed != true) return;
 
     setState(() {
-      _isDeleting = true;
+      _deletingPropertyId = propertyId;
     });
 
     final error = await _controller.deleteProperty(propertyId);
 
     if (!mounted) return;
     setState(() {
-      _isDeleting = false;
+      _deletingPropertyId = null;
     });
 
     if (error != null) {
@@ -99,6 +100,32 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Property deleted successfully.')),
+    );
+    await _refresh();
+  }
+
+  Future<void> _togglePropertyStatus(OwnerPropertyItem item) async {
+    final nextStatus = item.status == 'active' ? 'inactive' : 'active';
+    final error = await _controller.updatePropertyStatus(
+      propertyId: item.propertyId,
+      status: nextStatus,
+    );
+
+    if (!mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          nextStatus == 'active'
+              ? 'Property activated successfully.'
+              : 'Property moved to inactive.',
+        ),
+      ),
     );
     await _refresh();
   }
@@ -119,7 +146,7 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                 alignment: Alignment.center,
                 children: [
                   const Text(
-                    'Follow-up Property',
+                    'Manage Listings',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 37 / 2,
@@ -237,29 +264,39 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                           if (filteredItems.isEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 56),
-                              child: Text(
-                                _selectedFilter == ListingFilter.active
+                              child: _OwnerEmptyState(
+                                title: _selectedFilter == ListingFilter.active
                                     ? 'No active properties found.'
                                     : 'No inactive properties found.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF1F2430),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                description: _selectedFilter == ListingFilter.active
+                                    ? 'Add a new listing or reactivate one of your inactive properties.'
+                                    : 'Inactive listings will appear here when you hide them from the market.',
+                                actionLabel: _selectedFilter == ListingFilter.active
+                                    ? 'Back to Home'
+                                    : 'Show active listings',
+                                onTap: () {
+                                  if (_selectedFilter == ListingFilter.active) {
+                                    Navigator.of(context).pop();
+                                  } else {
+                                    setState(() {
+                                      _selectedFilter = ListingFilter.active;
+                                    });
+                                  }
+                                },
                               ),
                             )
                           else if (visibleItems.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 56),
-                              child: Text(
-                                'No properties match your search.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF1F2430),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 56),
+                              child: _OwnerEmptyState(
+                                title: 'No properties match your search.',
+                                description:
+                                    'Try another city, property type, or clear the search to see more listings.',
+                                actionLabel: 'Clear search',
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
                               ),
                             )
                           else
@@ -272,7 +309,19 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                                 ),
                                 child: _FollowUpCard(
                                   item: item,
-                                  isDeleting: _isDeleting,
+                                  isDeleting:
+                                      _deletingPropertyId == item.propertyId,
+                                  onView: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => PropertyDetailPage(
+                                              propertyId: item.propertyId,
+                                            ),
+                                      ),
+                                    );
+                                  },
                                   onUpdate: () async {
                                     await Navigator.push(
                                       context,
@@ -285,6 +334,7 @@ class _FollowUpPropertyPageState extends State<FollowUpPropertyPage> {
                                     );
                                     await _refresh();
                                   },
+                                  onToggleStatus: () => _togglePropertyStatus(item),
                                   onDelete:
                                       () => _deleteProperty(item.propertyId),
                                 ),
@@ -435,17 +485,31 @@ class _FollowUpCard extends StatelessWidget {
   const _FollowUpCard({
     required this.item,
     required this.isDeleting,
+    required this.onView,
     required this.onUpdate,
+    required this.onToggleStatus,
     required this.onDelete,
   });
 
   final OwnerPropertyItem item;
   final bool isDeleting;
+  final VoidCallback onView;
   final VoidCallback onUpdate;
+  final VoidCallback onToggleStatus;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final isActive = item.status == 'active';
+    final transactionLabel =
+        item.transactionType == 'rent'
+            ? item.rentType == 'monthly'
+                ? 'Rent - Monthly'
+                : item.rentType == 'yearly'
+                    ? 'Rent - Yearly'
+                    : 'Rent'
+            : 'Buy';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
@@ -461,17 +525,91 @@ class _FollowUpCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            item.title,
-            style: const TextStyle(
-              color: Color(0xFF1F2430),
-              fontSize: 36 / 2,
-              fontWeight: FontWeight.w700,
-            ),
-            textAlign: TextAlign.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    height: 92,
+                    child:
+                        item.imageUrl == null || item.imageUrl!.trim().isEmpty
+                            ? Container(
+                                color: const Color(0xFFEDEFF2),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.home_work_outlined,
+                                  color: Color(0xFF8E949F),
+                                  size: 30,
+                                ),
+                              )
+                            : Image.network(
+                                item.imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Container(
+                                      color: const Color(0xFFEDEFF2),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.broken_image_outlined,
+                                        color: Color(0xFF8E949F),
+                                        size: 30,
+                                      ),
+                                    ),
+                              ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 7,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        color: Color(0xFF1F2430),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ListingBadge(
+                          label: isActive ? 'Active' : 'Inactive',
+                          color: isActive
+                              ? const Color(0xFF2F7D32)
+                              : const Color(0xFF7A6F8F),
+                          backgroundColor: isActive
+                              ? const Color(0xFFE4F3E8)
+                              : const Color(0xFFF0EAF7),
+                        ),
+                        _ListingBadge(
+                          label: transactionLabel,
+                          color: const Color(0xFF355C7D),
+                          backgroundColor: const Color(0xFFEAF0F6),
+                        ),
+                        _ListingBadge(
+                          label: 'Price ${item.priceLabel}',
+                          color: const Color(0xFF1C2A4A),
+                          backgroundColor: const Color(0xFFEDF1F8),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
@@ -482,38 +620,169 @@ class _FollowUpCard extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: _ActionRow(
-                  label: 'Update',
-                  icon: Icons.edit_note_rounded,
-                  accentColor: const Color(0xFF355C7D),
-                  backgroundColor: const Color(0xFFEAF0F6),
-                  borderColor: const Color(0xFFD4DFEA),
-                  onTap: onUpdate,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
                 child: _InfoRow(
                   icon: Icons.bathtub_rounded,
                   label: 'Bathrooms',
                   value: item.bathrooms,
                 ),
               ),
-              Expanded(
-                child: _ActionRow(
-                  label: isDeleting ? 'Deleting' : 'Delete',
-                  icon: Icons.delete_rounded,
-                  accentColor: const Color(0xFF9A4B5A),
-                  backgroundColor: const Color(0xFFF8EDEF),
-                  borderColor: const Color(0xFFE8CDD4),
-                  onTap: isDeleting ? null : onDelete,
-                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _ActionRow(
+                label: 'View',
+                icon: Icons.visibility_rounded,
+                accentColor: const Color(0xFF1C2A4A),
+                backgroundColor: const Color(0xFFEDF1F8),
+                borderColor: const Color(0xFFD7E0F0),
+                onTap: onView,
+              ),
+              _ActionRow(
+                label: 'Update',
+                icon: Icons.edit_note_rounded,
+                accentColor: const Color(0xFF355C7D),
+                backgroundColor: const Color(0xFFEAF0F6),
+                borderColor: const Color(0xFFD4DFEA),
+                onTap: onUpdate,
+              ),
+              _ActionRow(
+                label: isActive ? 'Deactivate' : 'Activate',
+                icon: isActive
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.play_circle_fill_rounded,
+                accentColor: isActive
+                    ? const Color(0xFF7A6F8F)
+                    : const Color(0xFF2F7D32),
+                backgroundColor: isActive
+                    ? const Color(0xFFF0EAF7)
+                    : const Color(0xFFE4F3E8),
+                borderColor: isActive
+                    ? const Color(0xFFE1D5F2)
+                    : const Color(0xFFCFE8D6),
+                onTap: onToggleStatus,
+              ),
+              _ActionRow(
+                label: isDeleting ? 'Deleting' : 'Delete',
+                icon: Icons.delete_rounded,
+                accentColor: const Color(0xFF9A4B5A),
+                backgroundColor: const Color(0xFFF8EDEF),
+                borderColor: const Color(0xFFE8CDD4),
+                onTap: isDeleting ? null : onDelete,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListingBadge extends StatelessWidget {
+  const _ListingBadge({
+    required this.label,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  final String label;
+  final Color color;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerEmptyState extends StatelessWidget {
+  const _OwnerEmptyState({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.inbox_rounded,
+            color: Color(0xFF8E949F),
+            size: 28,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2A4A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                actionLabel,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),

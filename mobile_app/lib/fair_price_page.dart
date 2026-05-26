@@ -41,6 +41,10 @@ class _FairPricePageState extends State<FairPricePage> {
   double? _averagePrice;
   int _sampleCount = 0;
   String? _errorMessage;
+  String? _formMessage;
+  bool _hasSearched = false;
+
+  bool get _isLandSelected => _propertyType == 'Land';
 
   int? _parseBedroomCount(String? value) {
     if (value == null || value.isEmpty) return null;
@@ -55,24 +59,43 @@ class _FairPricePageState extends State<FairPricePage> {
     return index + 1;
   }
 
-  Future<void> _showFairPrice() async {
+  Future<void> _pickCity() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => _SearchableSelectionSheet(
+            title: 'Select City',
+            items: CityData.allCities,
+            selectedValue: _propertyCity,
+          ),
+    );
+
+    if (!mounted || selected == null) return;
+    setState(() {
+      _propertyCity = selected;
+    });
+  }
+
+  Future<void> _showAveragePrice() async {
     if (_month == null ||
         _transactionType == null ||
         _propertyType == null ||
         _propertyCity == null ||
         _bedrooms == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fair price fields.')),
-      );
+      setState(() {
+        _formMessage = 'Please complete all average price fields.';
+      });
       return;
     }
 
     final monthNumber = _monthToNumber(_month);
     final bedroomCount = _parseBedroomCount(_bedrooms);
     if (monthNumber == null || bedroomCount == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid fair price selection.')),
-      );
+      setState(() {
+        _formMessage = 'Invalid average price selection.';
+      });
       return;
     }
 
@@ -81,6 +104,8 @@ class _FairPricePageState extends State<FairPricePage> {
       _averagePrice = null;
       _sampleCount = 0;
       _errorMessage = null;
+      _formMessage = null;
+      _hasSearched = true;
     });
 
     final now = DateTime.now();
@@ -100,7 +125,7 @@ class _FairPricePageState extends State<FairPricePage> {
     if (!result.success) {
       setState(() {
         _isLoading = false;
-        _errorMessage = result.errorMessage ?? 'Failed to load fair price.';
+        _errorMessage = result.errorMessage ?? 'Failed to load average price.';
       });
       return;
     }
@@ -130,7 +155,7 @@ class _FairPricePageState extends State<FairPricePage> {
                 alignment: Alignment.center,
                 children: [
                   const Text(
-                    'Fair Price',
+                    'Average Price',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -162,6 +187,10 @@ class _FairPricePageState extends State<FairPricePage> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                   child: Column(
                     children: [
+                      if (_formMessage != null) ...[
+                        _InlineHintCard(message: _formMessage!),
+                        const SizedBox(height: 14),
+                      ],
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
@@ -206,28 +235,31 @@ class _FairPricePageState extends State<FairPricePage> {
                                 value: _propertyType,
                                 hint: 'Place Holder...',
                                 items: _propertyTypes,
-                                onChanged: (v) =>
-                                    setState(() => _propertyType = v),
+                                onChanged: (v) => setState(() {
+                                  _propertyType = v;
+                                  if (_isLandSelected) {
+                                    _bedrooms = null;
+                                  }
+                                }),
                               ),
                             ),
                             const SizedBox(height: 14),
                             _FormRow(
                               label: 'Property City',
-                              child: _SelectBox(
+                              child: _SearchTriggerField(
+                                hint: 'Property City',
                                 value: _propertyCity,
-                                hint: 'Place Holder...',
-                                items: CityData.allCities,
-                                onChanged: (v) =>
-                                    setState(() => _propertyCity = v),
+                                onTap: _pickCity,
                               ),
                             ),
                             const SizedBox(height: 14),
                             _FormRow(
                               label: 'Bedrooms',
                               child: _SelectBox(
-                                value: _bedrooms,
-                                hint: '4',
+                                value: _isLandSelected ? null : _bedrooms,
+                                hint: _isLandSelected ? 'Not used for land' : '4',
                                 items: _counts,
+                                enabled: !_isLandSelected,
                                 onChanged: (v) => setState(() => _bedrooms = v),
                               ),
                             ),
@@ -239,7 +271,7 @@ class _FairPricePageState extends State<FairPricePage> {
                         width: double.infinity,
                         height: 38,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _showFairPrice,
+                          onPressed: _isLoading ? null : _showAveragePrice,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primary,
                             foregroundColor: Colors.white,
@@ -260,7 +292,7 @@ class _FairPricePageState extends State<FairPricePage> {
                                   ),
                                 )
                               : const Text(
-                                  'Show Fair Price',
+                                  'Show Average Price',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -298,7 +330,7 @@ class _FairPricePageState extends State<FairPricePage> {
                                 ? Column(
                                     children: [
                                       const Text(
-                                        'Fair Price',
+                                        'Average Price',
                                         style: TextStyle(
                                           color: Color(0xFF1F2430),
                                           fontSize: 15,
@@ -325,8 +357,19 @@ class _FairPricePageState extends State<FairPricePage> {
                                       ),
                                     ],
                                   )
+                                : _hasSearched
+                                    ? const Text(
+                                        'No average price data was found for this selection. Try a different month, city, or property type.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Color(0xFF8E949F),
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.35,
+                                        ),
+                                      )
                                 : const Text(
-                                    'Select options and press Show Fair Price.',
+                                    'Select options and press Show Average Price.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Color(0xFF8E949F),
@@ -342,6 +385,47 @@ class _FairPricePageState extends State<FairPricePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InlineHintCard extends StatelessWidget {
+  const _InlineHintCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1E8),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF4C7B5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFFC2410C),
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFC2410C),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -404,12 +488,14 @@ class _SelectBox extends StatelessWidget {
     required this.hint,
     required this.items,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String? value;
   final String hint;
   final List<String> items;
   final ValueChanged<String?> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -417,30 +503,38 @@ class _SelectBox extends StatelessWidget {
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F9),
+        color: enabled ? const Color(0xFFF8F8F9) : const Color(0xFFEEF0F3),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFDDE0E5)),
+        border: Border.all(
+          color: enabled ? const Color(0xFFDDE0E5) : const Color(0xFFE1E4E8),
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF1C2A4A),
-            size: 26,
+          icon: Icon(
+            enabled
+                ? Icons.keyboard_arrow_down_rounded
+                : Icons.lock_outline_rounded,
+            color: enabled ? const Color(0xFF1C2A4A) : const Color(0xFF9AA1AD),
+            size: enabled ? 26 : 20,
           ),
           hint: Text(
             hint,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFD1D4D9),
+            style: TextStyle(
+              color: enabled
+                  ? const Color(0xFFD1D4D9)
+                  : const Color(0xFF9AA1AD),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
-          style: const TextStyle(
-            color: Color(0xFF1F2430),
+          style: TextStyle(
+            color: enabled
+                ? const Color(0xFF1F2430)
+                : const Color(0xFF9AA1AD),
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
@@ -452,9 +546,256 @@ class _SelectBox extends StatelessWidget {
                 ),
               )
               .toList(),
-          onChanged: onChanged,
+          onChanged: enabled ? onChanged : null,
         ),
       ),
+    );
+  }
+}
+
+class _SearchTriggerField extends StatelessWidget {
+  const _SearchTriggerField({
+    required this.hint,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String hint;
+  final String? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F8F9),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFDDE0E5)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value ?? hint,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color:
+                        value == null
+                            ? const Color(0xFFD1D4D9)
+                            : const Color(0xFF1F2430),
+                    fontSize: 15,
+                    fontWeight:
+                        value == null ? FontWeight.w500 : FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.search_rounded,
+                color: Color(0xFF1C2A4A),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchableSelectionSheet extends StatefulWidget {
+  const _SearchableSelectionSheet({
+    required this.title,
+    required this.items,
+    required this.selectedValue,
+  });
+
+  final String title;
+  final List<String> items;
+  final String? selectedValue;
+
+  @override
+  State<_SearchableSelectionSheet> createState() =>
+      _SearchableSelectionSheetState();
+}
+
+class _SearchableSelectionSheetState extends State<_SearchableSelectionSheet> {
+  late final TextEditingController _controller;
+  late List<String> _filteredItems;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _filteredItems = widget.items;
+    _controller.addListener(_filterItems);
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_filterItems)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _filterItems() {
+    final query = _controller.text.trim().toLowerCase();
+    setState(() {
+      _filteredItems =
+          query.isEmpty
+              ? widget.items
+              : widget.items
+                  .where((item) => item.toLowerCase().contains(query))
+                  .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.5,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD0D5DD),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        color: Color(0xFF1F2430),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFDDE0E5)),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFF1C2A4A),
+                          ),
+                          hintText: 'Type to search city',
+                          hintStyle: TextStyle(
+                            color: Color(0xFF98A2B3),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child:
+                    _filteredItems.isEmpty
+                        ? const Center(
+                          child: Text(
+                            'No matching city found.',
+                            style: TextStyle(
+                              color: Color(0xFF667085),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                        : ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: _filteredItems.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = _filteredItems[index];
+                            final isSelected = item == widget.selectedValue;
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => Navigator.of(context).pop(item),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Ink(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? const Color(0xFFEAF0FF)
+                                            : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? const Color(0xFFB8C8EA)
+                                              : const Color(0xFFDDE0E5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1F2430),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Color(0xFF1C2A4A),
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

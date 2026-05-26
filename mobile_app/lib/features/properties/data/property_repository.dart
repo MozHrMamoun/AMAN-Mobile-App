@@ -41,14 +41,57 @@ class PropertyRepository {
     final rows = await _client
         .from('properties')
         .select(
-          'property_id, property_type, property_state, property_city, bedrooms, bathrooms, status, price, area_sqm, location, description',
+          'property_id, property_type, transaction_type, rent_type, property_state, property_city, bedrooms, bathrooms, status, price, area_sqm, location, description',
         )
         .eq('owner_id', ownerId)
         .order('created_at', ascending: false);
 
-    return (rows as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
+    final properties =
+        (rows as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+
+    final propertyIds = properties
+        .map((row) => row['property_id'])
+        .whereType<num>()
+        .map((value) => value.toInt())
         .toList();
+    if (propertyIds.isEmpty) return properties;
+
+    final imageRows = await _client
+        .from('property_images')
+        .select('property_id, image_id, image_url')
+        .inFilter('property_id', propertyIds)
+        .order('image_id', ascending: true);
+
+    final firstImageByPropertyId = <int, String>{};
+    for (final raw in (imageRows as List)) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final propertyIdRaw = row['property_id'];
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null || firstImageByPropertyId.containsKey(propertyId)) {
+        continue;
+      }
+      final imageUrl = row['image_url']?.toString();
+      if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+        firstImageByPropertyId[propertyId] = imageUrl;
+      }
+    }
+
+    return properties.map((row) {
+      final propertyIdRaw = row['property_id'];
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      return {
+        ...row,
+        'image_url': propertyId == null ? null : firstImageByPropertyId[propertyId],
+      };
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> fetchSeekerHomeProperties({
@@ -166,6 +209,20 @@ class PropertyRepository {
 
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
+  }
+
+  Future<List<String>> fetchPropertyImageUrls(int propertyId) async {
+    final rows = await _client
+        .from('property_images')
+        .select('image_url, image_id')
+        .eq('property_id', propertyId)
+        .order('image_id', ascending: true);
+
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .map((row) => row['image_url'] as String?)
+        .whereType<String>()
+        .toList();
   }
 
   Future<void> deleteProperty({
@@ -296,6 +353,52 @@ class PropertyRepository {
     await _client.from('property_images').insert(rows);
   }
 
+  Future<void> replacePropertyImages({
+    required int propertyId,
+    required String ownerId,
+    required List<String> imageUrls,
+  }) async {
+    final existingRows = await _client
+        .from('property_images')
+        .select('image_url')
+        .eq('property_id', propertyId);
+
+    final existingPaths =
+        (existingRows as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .map((row) => row['image_url'] as String?)
+            .whereType<String>()
+            .map(
+              (url) => _extractPathFromUrl(url: url, bucket: 'property-images'),
+            )
+            .whereType<String>()
+            .toList();
+
+    if (existingPaths.isNotEmpty) {
+      await _client.storage.from('property-images').remove(existingPaths);
+    }
+
+    final imageFolder = 'properties/$ownerId/$propertyId';
+    try {
+      final leftovers = await _client.storage
+          .from('property-images')
+          .list(path: imageFolder);
+      final leftoverPaths =
+          leftovers.map((e) => '$imageFolder/${e.name}').toList();
+      if (leftoverPaths.isNotEmpty) {
+        await _client.storage.from('property-images').remove(leftoverPaths);
+      }
+    } catch (_) {
+      // Ignore cleanup-list errors; exact path deletion above is primary.
+    }
+
+    await _client.from('property_images').delete().eq('property_id', propertyId);
+
+    if (imageUrls.isNotEmpty) {
+      await insertPropertyImages(propertyId: propertyId, imageUrls: imageUrls);
+    }
+  }
+
   Future<void> updateProperty({
     required int propertyId,
     required String ownerId,
@@ -320,10 +423,17 @@ class PropertyRepository {
   }
 
   Future<void> markPropertyInactive({required int propertyId}) async {
+    await updatePropertyStatus(propertyId: propertyId, status: 'inactive');
+  }
+
+  Future<void> updatePropertyStatus({
+    required int propertyId,
+    required String status,
+  }) async {
     await _client
         .from('properties')
         .update({
-          'status': 'inactive',
+          'status': status,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('property_id', propertyId);

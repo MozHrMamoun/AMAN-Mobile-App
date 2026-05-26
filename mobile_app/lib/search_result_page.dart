@@ -4,6 +4,7 @@ import 'core/app_session.dart';
 import 'edit_information_page.dart';
 import 'features/properties/state/search_properties_controller.dart';
 import 'features/notifications/state/notification_controller.dart';
+import 'features/wished/state/wished_property_controller.dart';
 import 'message_page.dart';
 import 'notification_page.dart';
 import 'property_detail_page.dart';
@@ -24,6 +25,8 @@ class _SearchResultPageState extends State<SearchResultPage> {
   final SearchPropertiesController _controller = SearchPropertiesController();
   final NotificationController _notificationController =
       NotificationController();
+  final WishedPropertyController _wishedPropertyController =
+      WishedPropertyController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
   String? _errorMessage;
@@ -32,6 +35,7 @@ class _SearchResultPageState extends State<SearchResultPage> {
   bool _hasMore = true;
   int _page = 0;
   int _unreadNotifications = 0;
+  bool _isSavingPreference = false;
   static const int _pageSize = 20;
 
   @override
@@ -129,6 +133,69 @@ class _SearchResultPageState extends State<SearchResultPage> {
     );
     if (!mounted) return;
     _loadNotificationCount();
+  }
+
+  Future<void> _openRecommendation() async {
+    if (AppSession.isGuestMode) {
+      _openLoginRequired();
+      return;
+    }
+    setState(() {
+      _isSavingPreference = true;
+    });
+
+    final preferredPrice = widget.criteria.maxPrice ?? widget.criteria.minPrice;
+    final result = await _wishedPropertyController.saveWish(
+      isBuy: widget.criteria.transactionType.toLowerCase() != 'rent',
+      rentType: _formatRentType(widget.criteria.rentType),
+      propertyType: widget.criteria.propertyType,
+      city: widget.criteria.propertyCity,
+      bedrooms: _countToLabel(
+        widget.criteria.bedrooms,
+        widget.criteria.bedroomsAtLeast,
+      ),
+      bathrooms: _countToLabel(
+        widget.criteria.bathrooms,
+        widget.criteria.bathroomsAtLeast,
+      ),
+      priceText: preferredPrice?.toStringAsFixed(0) ?? '',
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSavingPreference = false;
+    });
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(result.success ? 'Preference saved' : 'Unable to save'),
+          content: Text(
+            result.success
+                ? 'Your search preferences were saved successfully. We will use them to match you with suitable properties in the future.'
+                : (result.errorMessage ?? 'Failed to save your preferences.'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String? _countToLabel(int? value, bool atLeast) {
+    if (value == null) return null;
+    if (atLeast && value >= 5) return '5+';
+    return value.toString();
+  }
+
+  String? _formatRentType(String? rentType) {
+    if (rentType == null || rentType.isEmpty) return null;
+    return '${rentType[0].toUpperCase()}${rentType.substring(1)}';
   }
 
   @override
@@ -231,13 +298,13 @@ class _SearchResultPageState extends State<SearchResultPage> {
                                   ),
                                 )
                                 : _items.isEmpty
-                                ? const Center(
-                                  child: Text(
-                                    'No properties found.',
-                                    style: TextStyle(
-                                      color: Color(0xFF1F2430),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: _SearchEmptyState(
+                                      isSaving: _isSavingPreference,
+                                      onDismiss: () => Navigator.of(context).pop(),
+                                      onSaveTap: _openRecommendation,
                                     ),
                                   ),
                                 )
@@ -332,6 +399,125 @@ class _SearchResultPageState extends State<SearchResultPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SearchEmptyState extends StatelessWidget {
+  const _SearchEmptyState({
+    required this.isSaving,
+    required this.onDismiss,
+    required this.onSaveTap,
+  });
+
+  final bool isSaving;
+  final VoidCallback onDismiss;
+  final VoidCallback onSaveTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.search_off_rounded,
+            color: Color(0xFF8E949F),
+            size: 30,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'No matching properties found',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Would you like to save these preferences so we can match you when a suitable property appears in the future?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: onDismiss,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1C2A4A),
+                      side: const BorderSide(color: Color(0xFFD7DBE2)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'No',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : onSaveTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1C2A4A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child:
+                        isSaving
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : const Text(
+                              'Yes, Save It',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

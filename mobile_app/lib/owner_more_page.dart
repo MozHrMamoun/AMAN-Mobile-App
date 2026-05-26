@@ -98,9 +98,9 @@ class OwnerMorePage extends StatelessWidget {
                       const SizedBox(height: 14),
                       _OwnerServiceCard(
                         icon: Icons.handshake_outlined,
-                        title: 'My Deals',
+                        title: 'Deals',
                         description:
-                            'Review deal requests, completed deals.',
+                            'Review active requests and completed deals.',
                         onTap: () {
                           Navigator.push(
                             context,

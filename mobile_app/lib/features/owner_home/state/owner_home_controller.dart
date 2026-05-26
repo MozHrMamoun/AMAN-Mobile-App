@@ -2,16 +2,34 @@
 
 import '../data/owner_home_repository.dart';
 
+enum OwnerActivityKind { chat, dealPending, dealCompleted, listingInactive }
+
 class OwnerActivityItem {
   const OwnerActivityItem({
+    required this.kind,
+    required this.chatId,
+    required this.dealId,
+    required this.seekerUserId,
+    required this.ownerUserId,
     required this.peerName,
+    required this.title,
     required this.lastMessageText,
     required this.lastMessageAt,
+    required this.propertyId,
+    required this.statusLabel,
   });
 
+  final OwnerActivityKind kind;
+  final int chatId;
+  final int? dealId;
+  final String? seekerUserId;
+  final String? ownerUserId;
   final String peerName;
+  final String title;
   final String lastMessageText;
   final DateTime? lastMessageAt;
+  final int? propertyId;
+  final String statusLabel;
 }
 
 class OwnerDashboardResult {
@@ -82,6 +100,8 @@ class OwnerHomeController {
       final pendingDeals = await _repository.countPendingDeals(ownerId);
 
       final chatRows = await _repository.fetchChatsForUser(ownerId);
+      final dealRows = await _repository.fetchDealsForOwner(ownerId);
+      final propertyRows = await _repository.fetchPropertiesForOwner(ownerId);
       final chatIds = chatRows
           .map((row) => row['chat_id'])
           .whereType<num>()
@@ -113,19 +133,95 @@ class OwnerHomeController {
         return DateTime.tryParse(normalized);
       }
 
-      final activities = chatRows
+      int? parseInt(dynamic value) {
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        return int.tryParse(value?.toString() ?? '');
+      }
+
+      final chatActivities = chatRows
           .where((row) => (row['last_message_text'] as String?)?.trim().isNotEmpty == true)
           .map((row) {
             final ownerUserId = row['owner_user_id']?.toString();
             final seekerUserId = row['seeker_user_id']?.toString();
             final peerId = ownerUserId == ownerId ? seekerUserId : ownerUserId;
             final safePeerId = (peerId == null || peerId.isEmpty) ? '-' : peerId;
+            final chatIdRaw = row['chat_id'];
             return OwnerActivityItem(
+              kind: OwnerActivityKind.chat,
+              chatId:
+                  chatIdRaw is int
+                      ? chatIdRaw
+                      : (chatIdRaw is num ? chatIdRaw.toInt() : 0),
+              dealId: null,
+              seekerUserId: seekerUserId,
+              ownerUserId: ownerUserId,
               peerName: names[safePeerId] ?? 'User',
+              title: 'New message',
               lastMessageText: (row['last_message_text'] as String?) ?? '',
               lastMessageAt: parseDate(row['last_message_at']),
+              propertyId: null,
+              statusLabel: 'Chat',
             );
           })
+          .where((item) => item.chatId > 0);
+
+      final dealActivities = dealRows.map((row) {
+        final seekerId = row['seeker_id']?.toString() ?? '';
+        final dealId = parseInt(row['deal_id']);
+        final propertyId = parseInt(row['property_id']);
+        final isCompleted = row['done_at'] != null;
+        return OwnerActivityItem(
+          kind: isCompleted ? OwnerActivityKind.dealCompleted : OwnerActivityKind.dealPending,
+          chatId: 0,
+          dealId: dealId,
+          seekerUserId: seekerId,
+          ownerUserId: row['owner_id']?.toString(),
+          peerName: names[seekerId] ?? 'Seeker',
+          title: isCompleted ? 'Deal completed' : 'Deal requested',
+          lastMessageText: isCompleted
+              ? 'This property deal was completed successfully.'
+              : 'A seeker is waiting for your confirmation.',
+          lastMessageAt: parseDate(row['done_at']) ?? parseDate(row['created_at']),
+          propertyId: propertyId,
+          statusLabel: isCompleted ? 'Completed' : 'Deal',
+        );
+      });
+
+      final propertyActivities = propertyRows
+          .where((row) => ((row['status'] as String?) ?? '').toLowerCase() != 'active')
+          .map((row) {
+            final type = (row['property_type'] as String?) ?? 'Property';
+            final state = (row['property_state'] as String?) ?? '-';
+            final city = (row['property_city'] as String?) ?? '-';
+            return OwnerActivityItem(
+              kind: OwnerActivityKind.listingInactive,
+              chatId: 0,
+              dealId: null,
+              seekerUserId: null,
+              ownerUserId: ownerId,
+              peerName: type,
+              title: 'Listing inactive',
+              lastMessageText: '$type in $state / $city is currently hidden.',
+              lastMessageAt: parseDate(row['updated_at']),
+              propertyId: parseInt(row['property_id']),
+              statusLabel: 'Listing',
+            );
+          });
+
+      final activities = [
+        ...chatActivities,
+        ...dealActivities,
+        ...propertyActivities,
+      ]
+          .toList()
+        ..sort((a, b) {
+          final aTime = a.lastMessageAt?.millisecondsSinceEpoch ?? 0;
+          final bTime = b.lastMessageAt?.millisecondsSinceEpoch ?? 0;
+          return bTime.compareTo(aTime);
+        });
+
+      final trimmedActivities = activities
           .take(activityLimit)
           .toList();
 
@@ -134,7 +230,7 @@ class OwnerHomeController {
         inactiveListings: inactiveListings,
         pendingDeals: pendingDeals,
         unreadMessages: unreadMessages,
-        activities: activities,
+        activities: trimmedActivities,
       );
     } on PostgrestException catch (e) {
       return OwnerDashboardResult.error(

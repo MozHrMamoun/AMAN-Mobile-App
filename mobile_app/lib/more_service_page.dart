@@ -4,7 +4,6 @@ import 'core/app_session.dart';
 import 'core/app_theme.dart';
 import 'fair_price_page.dart';
 import 'my_deals_page.dart';
-import 'recommendation_page.dart';
 import 'seeker_home_page.dart';
 
 class MoreServicePage extends StatelessWidget {
@@ -99,7 +98,7 @@ class MoreServicePage extends StatelessWidget {
                       const SizedBox(height: 22),
                       _ServiceCard(
                         icon: Icons.query_stats_rounded,
-                        title: 'Fair Price',
+                        title: 'Average Price',
                         description:
                             'Check the monthly average property price based on selected filters.',
                         onTap: () => _openRestrictedPage(
@@ -109,19 +108,8 @@ class MoreServicePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       _ServiceCard(
-                        icon: Icons.lightbulb_outline_rounded,
-                        title: 'Recommendation',
-                        description:
-                            'Save the exact property details you want when search does not find a match.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const RecommendationPage(),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _ServiceCard(
                         icon: Icons.handshake_outlined,
-                        title: 'My Deals',
+                        title: 'Deals',
                         description:
                             'Track active and completed deals.',
                         onTap: () => _openRestrictedPage(

@@ -87,12 +87,6 @@ class NotificationController {
         return NotificationResult.error('Please login first.');
       }
 
-      try {
-        await _repository.runAiMatching();
-      } catch (_) {
-        // Ignore AI match errors so notifications still load.
-      }
-
       final rows = await _repository.fetchNotificationsForUser(userId);
       final items = rows.map(NotificationItem.fromMap).toList();
       final unreadCount = await _repository.fetchUnreadCount(userId);

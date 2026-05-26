@@ -224,33 +224,40 @@ void main() {
     });
   });
 
-  group('AuthController.sendPasswordResetEmail', () {
-    test('rejects empty email', () async {
+  group('AuthController.sendPasswordResetByUsername', () {
+    test('rejects empty username', () async {
       final controller = AuthController(repository: FakeAuthRepository());
 
-      final result = await controller.sendPasswordResetEmail(email: ' ');
+      final result = await controller.sendPasswordResetByUsername(username: ' ');
 
       expect(result.success, isFalse);
-      expect(result.errorMessage, 'Please enter your email.');
+      expect(result.errorMessage, 'Please enter your username.');
     });
 
-    test('rejects invalid email format', () async {
-      final controller = AuthController(repository: FakeAuthRepository());
+    test('returns username not found when no matching profile exists', () async {
+      final controller = AuthController(
+        repository: FakeAuthRepository(findUserResult: null),
+      );
 
-      final result = await controller.sendPasswordResetEmail(
-        email: 'not-an-email',
+      final result = await controller.sendPasswordResetByUsername(
+        username: 'missing-user',
       );
 
       expect(result.success, isFalse);
-      expect(result.errorMessage, 'Please enter a valid email address.');
+      expect(result.errorMessage, 'Username not found.');
     });
 
-    test('sends normalized email to repository', () async {
-      final repository = FakeAuthRepository();
+    test('sends matched email to repository', () async {
+      final repository = FakeAuthRepository(
+        findUserResult: {
+          'email': 'reset@aman.com',
+          'role': 'seeker',
+        },
+      );
       final controller = AuthController(repository: repository);
 
-      final result = await controller.sendPasswordResetEmail(
-        email: ' Reset@Aman.com ',
+      final result = await controller.sendPasswordResetByUsername(
+        username: ' ResetUser ',
       );
 
       expect(result.success, isTrue);

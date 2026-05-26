@@ -15,12 +15,15 @@ class UpdatePropertyPage extends StatefulWidget {
 
 class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
   final List<XFile> _propertyImageFiles = [];
+  List<String> _currentImageUrls = const [];
   final List<String> _rentTypes = ['Monthly', 'Yearly'];
   bool _isActive = true;
   bool _isLoading = true;
   bool _isSubmitting = false;
   String _transactionType = '';
   String? _rentType;
+  String? _formMessage;
+  bool _isFormMessageError = false;
 
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -46,11 +49,22 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
     if (!mounted) return;
 
     if (!result.success || result.data == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Failed to load property.'),
-        ),
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Unable to open property'),
+            content: Text(result.errorMessage ?? 'Failed to load property.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
       );
+      if (!mounted) return;
       Navigator.of(context).pop();
       return;
     }
@@ -58,6 +72,7 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
     _priceController.text = result.data!.price;
     _descriptionController.text = result.data!.description;
     _isActive = result.data!.isActive;
+    _currentImageUrls = result.data!.imageUrls;
     _transactionType = result.data!.transactionType;
     _rentType =
         result.data!.rentType == null
@@ -77,6 +92,9 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
         _propertyImageFiles
           ..clear()
           ..addAll(picked);
+        _formMessage =
+            '${picked.length} new image(s) selected. They will replace the current set after update.';
+        _isFormMessageError = false;
       });
     }
   }
@@ -84,6 +102,7 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
   Future<void> _updateProperty() async {
     setState(() {
       _isSubmitting = true;
+      _formMessage = null;
     });
 
     final result = await _controller.updateProperty(
@@ -103,17 +122,31 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
     });
 
     if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Failed to update property.'),
-        ),
-      );
+      setState(() {
+        _formMessage = result.errorMessage ?? 'Failed to update property.';
+        _isFormMessageError = true;
+      });
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Property updated successfully.')),
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Property updated'),
+          content: const Text(
+            'Your listing changes were saved successfully.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
+    if (!mounted) return;
     Navigator.of(context).pop();
   }
 
@@ -170,6 +203,13 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                           child: Column(
                             children: [
+                              if (_formMessage != null) ...[
+                                _InlineFeedbackCard(
+                                  message: _formMessage!,
+                                  isError: _isFormMessageError,
+                                ),
+                                const SizedBox(height: 14),
+                              ],
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.fromLTRB(
@@ -229,14 +269,100 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                                     ],
                                     _LabeledRow(
                                       label: 'Property Images',
-                                      child: _AttachmentField(
-                                        fileName:
-                                            _propertyImageFiles.isEmpty
-                                                ? null
-                                                : '${_propertyImageFiles.length} images selected',
-                                        buttonLabel: 'Attach Images',
-                                        onTap: _pickPropertyImages,
-                                        border: border,
+                                      alignTop: true,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (_currentImageUrls.isNotEmpty &&
+                                              _propertyImageFiles.isEmpty) ...[
+                                            SizedBox(
+                                              height: 74,
+                                              child: ListView.separated(
+                                                scrollDirection: Axis.horizontal,
+                                                itemCount: _currentImageUrls.length,
+                                                separatorBuilder: (_, __) =>
+                                                    const SizedBox(width: 8),
+                                                itemBuilder: (context, index) {
+                                                  final imageUrl =
+                                                      _currentImageUrls[index];
+                                                  return ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(8),
+                                                    child: SizedBox(
+                                                      width: 74,
+                                                      height: 74,
+                                                      child: Image.network(
+                                                        imageUrl,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (_, __, ___) =>
+                                                                Container(
+                                                                  color: const Color(
+                                                                    0xFFF1F1F2,
+                                                                  ),
+                                                                  alignment:
+                                                                      Alignment
+                                                                          .center,
+                                                                  child: const Icon(
+                                                                    Icons
+                                                                        .broken_image_outlined,
+                                                                    color: Color(
+                                                                      0xFF9AA1AD,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            const Text(
+                                              'Current images shown here. Selecting new images will replace the entire set.',
+                                              style: TextStyle(
+                                                color: Color(0xFF8E949F),
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                          if (_propertyImageFiles.isNotEmpty) ...[
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEAF0F6),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: const Color(0xFFD4DFEA),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${_propertyImageFiles.length} new image(s) selected. These will replace the current images after update.',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF355C7D),
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                          _AttachmentField(
+                                            fileName:
+                                                _propertyImageFiles.isEmpty
+                                                    ? null
+                                                    : '${_propertyImageFiles.length} images selected',
+                                            buttonLabel: 'Attach Images',
+                                            onTap: _pickPropertyImages,
+                                            border: border,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     const SizedBox(height: 14),
@@ -591,6 +717,58 @@ class _AttachmentField extends StatelessWidget {
             label: Text(
               hasFile ? 'Change' : buttonLabel,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineFeedbackCard extends StatelessWidget {
+  const _InlineFeedbackCard({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final background =
+        isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
+    final border =
+        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
             ),
           ),
         ],

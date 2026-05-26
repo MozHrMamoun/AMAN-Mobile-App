@@ -360,15 +360,47 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                           ),
                           const SizedBox(height: 18),
                           if (_filteredProperties.isEmpty)
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.only(top: 40),
-                              child: Text(
-                                'No properties found for selected filters.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF1F2430),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: const Color(0xFFDDE0E5),
+                                  ),
+                                ),
+                                child: const Column(
+                                  children: [
+                                    Icon(
+                                      Icons.search_off_rounded,
+                                      color: Color(0xFF8E949F),
+                                      size: 30,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'No properties found for these filters',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF1F2430),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Try another city or property type to see more listings.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF8E949F),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )

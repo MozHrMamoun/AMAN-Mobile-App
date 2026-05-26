@@ -50,6 +50,34 @@ class OwnerHomeRepository {
     return (rows as List).length;
   }
 
+  Future<List<Map<String, dynamic>>> fetchDealsForOwner(String ownerId) async {
+    final rows = await _client
+        .from('deals')
+        .select('deal_id, seeker_id, owner_id, property_id, done_at, created_at')
+        .eq('owner_id', ownerId)
+        .order('created_at', ascending: false)
+        .limit(8);
+
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPropertiesForOwner(String ownerId) async {
+    final rows = await _client
+        .from('properties')
+        .select(
+          'property_id, property_type, property_state, property_city, status, updated_at',
+        )
+        .eq('owner_id', ownerId)
+        .order('updated_at', ascending: false)
+        .limit(8);
+
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   Future<List<Map<String, dynamic>>> fetchChatsForUser(String userId) async {
     final rows = await _client
         .from('chats')

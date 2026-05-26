@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'add_property_page.dart';
+import 'chat_detail_page.dart';
 import 'core/app_session.dart';
+import 'deal_detail_page.dart';
 import 'edit_information_page.dart';
 import 'features/owner_home/state/owner_home_controller.dart';
 import 'follow_up_property_page.dart';
 import 'message_page.dart';
 import 'my_deals_page.dart';
 import 'owner_more_page.dart';
+import 'property_detail_page.dart';
 
 class OwnerHomePage extends StatefulWidget {
   const OwnerHomePage({super.key});
@@ -66,14 +69,76 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     });
   }
 
-  String _formatTime(DateTime? value) {
-    if (value == null) return '';
-    final local = value.toLocal();
-    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final h = hour.toString().padLeft(2, '0');
-    final m = local.minute.toString().padLeft(2, '0');
-    final suffix = local.hour >= 12 ? 'PM' : 'AM';
-    return '$h:$m $suffix';
+  String _formatRelativeTime(DateTime? value) {
+    if (value == null) return 'Recently';
+    final diff = DateTime.now().difference(value.toLocal());
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${value.toLocal().day}/${value.toLocal().month}/${value.toLocal().year}';
+  }
+
+  Future<void> _openActivity(OwnerActivityItem activity) async {
+    switch (activity.kind) {
+      case OwnerActivityKind.chat:
+        if (activity.chatId <= 0) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => ChatDetailPage(
+                  chatId: activity.chatId,
+                  peerName: activity.peerName,
+                  propertyId: activity.propertyId,
+                ),
+          ),
+        );
+        break;
+      case OwnerActivityKind.dealPending:
+      case OwnerActivityKind.dealCompleted:
+        final seekerUserId = activity.seekerUserId;
+        final ownerUserId = activity.ownerUserId;
+        final propertyId = activity.propertyId;
+        if (seekerUserId == null || ownerUserId == null || propertyId == null) {
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => DealDetailPage(
+                  peerName: activity.peerName,
+                  seekerUserId: seekerUserId,
+                  ownerUserId: ownerUserId,
+                  propertyId: propertyId,
+                ),
+          ),
+        );
+        break;
+      case OwnerActivityKind.listingInactive:
+        final propertyId = activity.propertyId;
+        if (propertyId == null) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (_) => const FollowUpPropertyPage(
+                    initialFilter: ListingFilter.inactive,
+                  ),
+            ),
+          );
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PropertyDetailPage(propertyId: propertyId),
+            ),
+          );
+        }
+        break;
+    }
+    await _loadDashboard();
   }
 
   void _onNavTap(int index) {
@@ -234,7 +299,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _StatCard(
-                              label: 'Unread Msg',
+                              label: 'Unread Messages',
                               value: _unreadMessages.toString(),
                               icon: Icons.mark_chat_unread_rounded,
                               accentColor: const Color(0xFF4A6785),
@@ -256,31 +321,78 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                       ),
                       const SizedBox(height: 22),
                       const Text(
-                        'Recent Activity',
+                        'Activity',
                         style: TextStyle(
                           color: Color(0xFF1F2430),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Messages, deals, and listing changes that need your attention.',
+                        style: TextStyle(
+                          color: Color(0xFF8E949F),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       if (_activities.isEmpty)
-                        const Text(
-                          'No recent activity.',
-                          style: TextStyle(
-                            color: Color(0xFF8E949F),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        _SectionEmptyState(
+                          title: 'No owner activity yet',
+                          description:
+                              'When a seeker messages you, starts a deal, or one of your listings changes state, it will appear here.',
+                          actionLabel: 'Open Messages',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) =>
+                                        const MessagePage(initialRole: 'owner'),
+                              ),
+                            );
+                          },
                         )
                       else
                         ..._activities.map(
                           (activity) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _ActivityCard(
-                              name: activity.peerName,
+                              title: activity.title,
+                              subject: activity.peerName,
                               message: activity.lastMessageText,
-                              timeLabel: _formatTime(activity.lastMessageAt),
+                              statusLabel: activity.statusLabel,
+                              timeLabel: _formatRelativeTime(activity.lastMessageAt),
+                              icon: switch (activity.kind) {
+                                OwnerActivityKind.chat =>
+                                  Icons.mark_chat_unread_rounded,
+                                OwnerActivityKind.dealPending =>
+                                  Icons.handshake_rounded,
+                                OwnerActivityKind.dealCompleted =>
+                                  Icons.verified_rounded,
+                                OwnerActivityKind.listingInactive =>
+                                  Icons.pause_circle_filled_rounded,
+                              },
+                              accentColor: switch (activity.kind) {
+                                OwnerActivityKind.chat =>
+                                  const Color(0xFF355C7D),
+                                OwnerActivityKind.dealPending =>
+                                  const Color(0xFFD68600),
+                                OwnerActivityKind.dealCompleted =>
+                                  const Color(0xFF2F7D32),
+                                OwnerActivityKind.listingInactive =>
+                                  const Color(0xFF7A6F8F),
+                              },
+                              actionLabel: switch (activity.kind) {
+                                OwnerActivityKind.chat => 'Open chat',
+                                OwnerActivityKind.dealPending => 'Review deal',
+                                OwnerActivityKind.dealCompleted => 'View deal',
+                                OwnerActivityKind.listingInactive =>
+                                  'Open listing',
+                              },
+                              onTap: () => _openActivity(activity),
                             ),
                           ),
                         ),
@@ -332,7 +444,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                       SizedBox(
                         width: double.infinity,
                         child: _ActionButton(
-                          label: 'My Deals',
+                          label: 'Deals',
                           onTap: () {
                             Navigator.push(
                               context,
@@ -555,67 +667,254 @@ class _StatCard extends StatelessWidget {
 
 class _ActivityCard extends StatelessWidget {
   const _ActivityCard({
-    required this.name,
+    required this.title,
+    required this.subject,
     required this.message,
+    required this.statusLabel,
     required this.timeLabel,
+    required this.icon,
+    required this.accentColor,
+    required this.actionLabel,
+    required this.onTap,
   });
 
-  final String name;
+  final String title;
+  final String subject;
   final String message;
+  final String statusLabel;
   final String timeLabel;
+  final IconData icon;
+  final Color accentColor;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = Color.lerp(accentColor, Colors.white, 0.9)!;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE0E2E5)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF1F2430),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _ActivityBadge(
+                          label: statusLabel,
+                          color: accentColor,
+                          backgroundColor: tint,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subject,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF4A5160),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF8E949F),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    timeLabel,
+                    style: const TextStyle(
+                      color: Color(0xFF8E949F),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        actionLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF1C2A4A),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: Color(0xFF1C2A4A),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityBadge extends StatelessWidget {
+  const _ActivityBadge({
+    required this.label,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  final String label;
+  final Color color;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0E2E5)),
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionEmptyState extends StatelessWidget {
+  const _SectionEmptyState({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final String title;
+  final String description;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Column(
         children: [
           const Icon(
-            Icons.account_circle_rounded,
-            size: 34,
-            color: Color(0xFF1C2A4A),
+            Icons.inbox_rounded,
+            color: Color(0xFF8E949F),
+            size: 28,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF1F2430),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  message,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF8E949F),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(height: 6),
           Text(
-            timeLabel,
+            description,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF8E949F),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2A4A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                actionLabel,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],

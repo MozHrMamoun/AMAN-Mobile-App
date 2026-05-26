@@ -13,6 +13,7 @@ class WishedPropertyRepository {
   Future<void> insertWish({
     required String seekerId,
     required String transactionType,
+    required String? rentType,
     required String propertyType,
     required String city,
     int? bedrooms,
@@ -22,6 +23,7 @@ class WishedPropertyRepository {
     await _client.from('wished_property').insert({
       'seeker_id': seekerId,
       'transaction_type': transactionType,
+      'rent_type': rentType,
       'property_type': propertyType,
       'city': city,
       'bedrooms': bedrooms,

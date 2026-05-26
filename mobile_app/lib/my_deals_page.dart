@@ -103,6 +103,10 @@ class _MyDealsPageState extends State<MyDealsPage> {
     return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
   }
 
+  String get _activeFilterLabel {
+    return _currentRole == 'owner' ? 'Active' : 'Pending';
+  }
+
   @override
   Widget build(BuildContext context) {
     const primary = Color(0xFF1C2A4A);
@@ -132,7 +136,7 @@ class _MyDealsPageState extends State<MyDealsPage> {
                   alignment: Alignment.center,
                   children: [
                     const Text(
-                      'My Deals',
+                      'Deals',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -182,8 +186,16 @@ class _MyDealsPageState extends State<MyDealsPage> {
                               child: ListView(
                                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                                 children: [
+                                  _DealsOverviewCard(
+                                    isOwner: _currentRole == 'owner',
+                                    activeLabel: _activeFilterLabel,
+                                    activeCount: activeItems.length,
+                                    completedCount: completedItems.length,
+                                  ),
+                                  const SizedBox(height: 16),
                                   _DealsSegmentedControl(
                                     selectedFilter: _selectedFilter,
+                                    activeLabel: _activeFilterLabel,
                                     activeCount: activeItems.length,
                                     completedCount: completedItems.length,
                                     onChanged: (value) {
@@ -194,8 +206,17 @@ class _MyDealsPageState extends State<MyDealsPage> {
                                   ),
                                   const SizedBox(height: 18),
                                   if (visibleItems.isEmpty)
-                                    const _EmptyState(
-                                      text: 'No deals found for this section.',
+                                    _EmptyState(
+                                      title: _selectedFilter == DealsFilter.active
+                                          ? _currentRole == 'owner'
+                                              ? 'No active owner deals'
+                                              : 'No active deals yet'
+                                          : 'No completed deals yet',
+                                      text: _selectedFilter == DealsFilter.active
+                                          ? _currentRole == 'owner'
+                                              ? 'When a seeker starts a deal on one of your listings, it will appear here for follow-up.'
+                                              : 'Deals you are currently discussing will appear here once they start.'
+                                          : 'Completed deals will stay here so you can revisit them later.',
                                     )
                                   else
                                     ...visibleItems.map(
@@ -248,12 +269,14 @@ class _MyDealsPageState extends State<MyDealsPage> {
 class _DealsSegmentedControl extends StatelessWidget {
   const _DealsSegmentedControl({
     required this.selectedFilter,
+    required this.activeLabel,
     required this.activeCount,
     required this.completedCount,
     required this.onChanged,
   });
 
   final DealsFilter selectedFilter;
+  final String activeLabel;
   final int activeCount;
   final int completedCount;
   final ValueChanged<DealsFilter> onChanged;
@@ -271,7 +294,7 @@ class _DealsSegmentedControl extends StatelessWidget {
         children: [
           Expanded(
             child: _DealsFilterTab(
-              label: 'Active',
+              label: activeLabel,
               count: activeCount,
               selected: selectedFilter == DealsFilter.active,
               onTap: () => onChanged(DealsFilter.active),
@@ -356,9 +379,147 @@ class _DealsFilterTab extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.text});
+class _DealsOverviewCard extends StatelessWidget {
+  const _DealsOverviewCard({
+    required this.isOwner,
+    required this.activeLabel,
+    required this.activeCount,
+    required this.completedCount,
+  });
 
+  final bool isOwner;
+  final String activeLabel;
+  final int activeCount;
+  final int completedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isOwner ? 'Owner deal snapshot' : 'Deal snapshot',
+            style: const TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isOwner
+                ? 'Track which deals still need your decision and which ones have already been closed.'
+                : 'Keep an eye on conversations that are still pending and the ones you have already completed.',
+            style: const TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _DealMetricCard(
+                  label: activeLabel,
+                  value: activeCount.toString(),
+                  accentColor: const Color(0xFFD68600),
+                  icon: Icons.pending_actions_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _DealMetricCard(
+                  label: 'Completed',
+                  value: completedCount.toString(),
+                  accentColor: const Color(0xFF2F7D32),
+                  icon: Icons.verified_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DealMetricCard extends StatelessWidget {
+  const _DealMetricCard({
+    required this.label,
+    required this.value,
+    required this.accentColor,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final Color accentColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundTint = Color.lerp(accentColor, Colors.white, 0.92)!;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundTint,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accentColor, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2430),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF667085),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.title, required this.text});
+
+  final String title;
   final String text;
 
   @override
@@ -370,13 +531,64 @@ class _EmptyState extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFDDE0E5)),
       ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.inbox_rounded,
+            color: Color(0xFF8E949F),
+            size: 28,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DealStatusPill extends StatelessWidget {
+  const _DealStatusPill({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = Color.lerp(color, Colors.white, 0.86)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Color(0xFF8E949F),
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -486,16 +698,12 @@ class _DealCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 6),
-                    Text(
-                      statusLabel,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    const SizedBox(height: 8),
+                    _DealStatusPill(
+                      label: statusLabel,
+                      color: statusColor,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       timeLabel,
                       maxLines: 1,

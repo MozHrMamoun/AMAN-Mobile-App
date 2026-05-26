@@ -29,6 +29,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   String? _bedrooms;
   List<XFile> _propertyImageFiles = [];
   XFile? _certificateFile;
+  String? _formMessage;
+  bool _isFormMessageError = false;
 
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _areaController = TextEditingController();
@@ -141,6 +143,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (picked.isNotEmpty) {
       setState(() {
         _propertyImageFiles = [..._propertyImageFiles, ...picked];
+        _formMessage =
+            '${picked.length} image(s) added. Drag to reorder and the first image will be used as the cover.';
+        _isFormMessageError = false;
       });
       await _saveDraft();
     }
@@ -153,6 +158,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (picked != null) {
       setState(() {
         _certificateFile = picked;
+        _formMessage = 'Certificate image attached successfully.';
+        _isFormMessageError = false;
       });
       await _saveDraft();
     }
@@ -177,6 +184,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   Future<void> _addProperty() async {
     setState(() {
       _isSaving = true;
+      _formMessage = null;
     });
 
     final result = await _addPropertyController.submit(
@@ -202,11 +210,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     });
 
     if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Failed to add property.'),
-        ),
-      );
+      setState(() {
+        _formMessage = result.errorMessage ?? 'Failed to add property.';
+        _isFormMessageError = true;
+      });
       return;
     }
 
@@ -332,6 +339,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                   child: Column(
                     children: [
+                      if (_formMessage != null) ...[
+                        _InlineFeedbackCard(
+                          message: _formMessage!,
+                          isError: _isFormMessageError,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
@@ -1058,6 +1072,58 @@ class _AttachmentField extends StatelessWidget {
             label: Text(
               hasFile ? 'Change' : buttonLabel,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineFeedbackCard extends StatelessWidget {
+  const _InlineFeedbackCard({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final background =
+        isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
+    final border =
+        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
             ),
           ),
         ],

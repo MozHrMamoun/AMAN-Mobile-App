@@ -4,10 +4,16 @@ import 'package:flutter/services.dart';
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
 import 'core/city_data.dart';
+import 'features/properties/state/search_properties_controller.dart';
 import 'features/wished/state/wished_property_controller.dart';
 
 class RecommendationPage extends StatefulWidget {
-  const RecommendationPage({super.key});
+  const RecommendationPage({
+    super.key,
+    this.initialCriteria,
+  });
+
+  final SearchCriteria? initialCriteria;
 
   @override
   State<RecommendationPage> createState() => _RecommendationPageState();
@@ -19,14 +25,24 @@ class _RecommendationPageState extends State<RecommendationPage> {
   bool _isBuySelected = true;
   String? _propertyType;
   String? _propertyCity;
+  String? _rentType;
   String? _bedrooms;
   String? _bathrooms;
   bool _isSaving = false;
+  String? _formMessage;
+  bool _isFormMessageError = false;
 
   final TextEditingController _priceController = TextEditingController();
 
   final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
+  final List<String> _rentTypes = ['Monthly', 'Yearly'];
   final List<String> _counts = ['1', '2', '3', '4', '5+'];
+
+  @override
+  void initState() {
+    super.initState();
+    _applyInitialCriteria();
+  }
 
   @override
   void dispose() {
@@ -34,20 +50,51 @@ class _RecommendationPageState extends State<RecommendationPage> {
     super.dispose();
   }
 
+  void _applyInitialCriteria() {
+    final criteria = widget.initialCriteria;
+    if (criteria == null) return;
+
+    _isBuySelected = criteria.transactionType.toLowerCase() != 'rent';
+    _rentType =
+        criteria.rentType == null || criteria.rentType!.isEmpty
+            ? null
+            : '${criteria.rentType![0].toUpperCase()}${criteria.rentType!.substring(1)}';
+    _propertyType = criteria.propertyType;
+    _propertyCity = criteria.propertyCity;
+    _bedrooms = _countToLabel(criteria.bedrooms, criteria.bedroomsAtLeast);
+    _bathrooms = _countToLabel(criteria.bathrooms, criteria.bathroomsAtLeast);
+    final preferredPrice = criteria.maxPrice ?? criteria.minPrice;
+    if (preferredPrice != null) {
+      _priceController.text = preferredPrice.toStringAsFixed(0);
+    }
+    _formMessage =
+        'Your search preferences were filled in automatically. Save them if you want future matches.';
+    _isFormMessageError = false;
+  }
+
+  String? _countToLabel(int? value, bool atLeast) {
+    if (value == null) return null;
+    if (atLeast && value >= 5) return '5+';
+    return value.toString();
+  }
+
   Future<void> _saveWish() async {
     if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      setState(() {
+        _formMessage = 'Please login to save a wished property.';
+        _isFormMessageError = true;
+      });
       return;
     }
 
     setState(() {
       _isSaving = true;
+      _formMessage = null;
     });
 
     final result = await _controller.saveWish(
       isBuy: _isBuySelected,
+      rentType: _rentType,
       propertyType: _propertyType,
       city: _propertyCity,
       bedrooms: _bedrooms,
@@ -62,87 +109,27 @@ class _RecommendationPageState extends State<RecommendationPage> {
     });
 
     if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Failed to save request.')),
-      );
+      setState(() {
+        _formMessage = result.errorMessage ?? 'Failed to save request.';
+        _isFormMessageError = true;
+      });
       return;
     }
 
-    await _showSavedSuccessfullyDialog();
+    setState(() {
+      _formMessage =
+          'Wish saved successfully. We will use it when matching suitable properties.';
+      _isFormMessageError = false;
+    });
 
     setState(() {
+      _rentType = null;
       _propertyType = null;
       _propertyCity = null;
       _bedrooms = null;
       _bathrooms = null;
       _priceController.clear();
     });
-  }
-
-  Future<void> _showSavedSuccessfullyDialog() async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Center(
-            child: Container(
-              width: 290,
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F2F5),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    offset: Offset(0, 4),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1C2A4A),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 64,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Saved\nSuccessfully!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF1F2430),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (!mounted) return;
-    final navigator = Navigator.of(context, rootNavigator: true);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
   }
 
   @override
@@ -195,6 +182,13 @@ class _RecommendationPageState extends State<RecommendationPage> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                   child: Column(
                     children: [
+                      if (_formMessage != null) ...[
+                        _InlineFeedbackCard(
+                          message: _formMessage!,
+                          isError: _isFormMessageError,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
@@ -218,7 +212,10 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                   child: _DealTypeTab(
                                     label: 'Buy',
                                     selected: _isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = true),
+                                    onTap: () => setState(() {
+                                      _isBuySelected = true;
+                                      _rentType = null;
+                                    }),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -231,6 +228,18 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                 ),
                               ],
                             ),
+                            if (!_isBuySelected) ...[
+                              const SizedBox(height: 14),
+                              _FormRow(
+                                label: 'Type of Rent',
+                                child: _SelectBox(
+                                  value: _rentType,
+                                  hint: 'Place Holder...',
+                                  items: _rentTypes,
+                                  onChanged: (v) => setState(() => _rentType = v),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 18),
                             _FormRow(
                               label: 'Price',
@@ -512,6 +521,58 @@ class _SelectBox extends StatelessWidget {
               .toList(),
           onChanged: onChanged,
         ),
+      ),
+    );
+  }
+}
+
+class _InlineFeedbackCard extends StatelessWidget {
+  const _InlineFeedbackCard({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final background =
+        isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
+    final border =
+        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

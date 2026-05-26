@@ -58,6 +58,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   bool _isRatingLoading = false;
   bool _isRefreshingLive = false;
   bool _pendingLiveRefresh = false;
+  String? _composerMessage;
+  bool _isComposerMessageError = false;
   static const int _messagePageSize = 30;
 
   String _formatMessageTime(DateTime? value) {
@@ -354,7 +356,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     if (_isSending) return;
 
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      setState(() {
+        _composerMessage = 'Type a message before sending.';
+        _isComposerMessageError = true;
+      });
+      return;
+    }
 
     final tempMessage = ChatMessageItem(
       messageId: -DateTime.now().millisecondsSinceEpoch,
@@ -368,6 +376,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
     setState(() {
       _isSending = true;
+      _composerMessage = null;
       _messages = [..._messages, tempMessage];
     });
 
@@ -388,18 +397,17 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             _messages
                 .where((m) => m.messageId != tempMessage.messageId)
                 .toList();
+        _composerMessage = result.errorMessage ?? 'Failed to send message.';
+        _isComposerMessageError = true;
       });
       _messageController.text = text;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Failed to send message.'),
-        ),
-      );
       return;
     }
 
     setState(() {
       _isSending = false;
+      _composerMessage = 'Message sent.';
+      _isComposerMessageError = false;
     });
 
     await _loadSilently();
@@ -407,14 +415,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Widget _buildDealActions() {
     if (_isDealStatusLoading) {
-      return const Text(
-        'Checking deal...',
-        style: TextStyle(
-          color: Color(0xFF8E949F),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      );
+      return const SizedBox.shrink();
     }
     if (!_dealStatusLoaded) {
       return const SizedBox.shrink();
@@ -439,10 +440,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
 
     if (_isDealCompleted) {
-      return _buildDealLink(
-        label: 'Deal completed',
-        labelColor: const Color(0xFF2F7D32),
-      );
+      return _buildDealLink();
     }
 
     if (_isDealPending) {
@@ -453,6 +451,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
 
     return _buildDealLink();
+  }
+
+  String? _dealStatusText() {
+    if (_isDealStatusLoading || !_dealStatusLoaded) return null;
+    if (_isDealCompleted) return 'Completed';
+    if (_isDealPending) return 'Pending deal';
+    return 'Deal available';
+  }
+
+  Color _dealStatusColor() {
+    if (_isDealCompleted) return const Color(0xFF2F7D32);
+    if (_isDealPending) return const Color(0xFFD68600);
+    return const Color(0xFF355C7D);
   }
 
   Widget _buildDealLink({String? label, Color? labelColor}) {
@@ -701,111 +712,152 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget _buildPropertySummaryCard() {
     final property = _propertySummary;
     if (property == null) return const SizedBox.shrink();
+    final dealStatusText = _dealStatusText();
+    final dealStatusColor = _dealStatusColor();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (_) => PropertyDetailPage(propertyId: property.propertyId),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFDDE0E5)),
+        ),
+        child: Column(
+          children: [
+            InkWell(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDDE0E5)),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    width: 62,
-                    height: 62,
-                    child:
-                        property.imageUrl == null ||
-                                property.imageUrl!.trim().isEmpty
-                            ? Container(
-                              color: const Color(0xFFF2F2F3),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.home_work_outlined,
-                                color: Color(0xFF8E949F),
-                              ),
-                            )
-                            : Image.network(
-                              property.imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder:
-                                  (_, __, ___) => Container(
-                                    color: const Color(0xFFF2F2F3),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.broken_image_outlined,
-                                      color: Color(0xFF8E949F),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => PropertyDetailPage(propertyId: property.propertyId),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 62,
+                      height: 62,
+                      child:
+                          property.imageUrl == null ||
+                                  property.imageUrl!.trim().isEmpty
+                              ? Container(
+                                color: const Color(0xFFF2F2F3),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.home_work_outlined,
+                                  color: Color(0xFF8E949F),
+                                ),
+                              )
+                              : Image.network(
+                                property.imageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Container(
+                                      color: const Color(0xFFF2F2F3),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.broken_image_outlined,
+                                        color: Color(0xFF8E949F),
+                                      ),
                                     ),
-                                  ),
-                            ),
+                              ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        property.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1F2430),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Linked property',
+                          style: TextStyle(
+                            color: Color(0xFF8E949F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        property.location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF6E7583),
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 4),
+                        Text(
+                          property.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF1F2430),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Bedrooms: ${property.bedrooms ?? '-'}   Bathrooms: ${property.bathrooms ?? '-'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF6E7583),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 4),
+                        Text(
+                          property.location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF6E7583),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Bedrooms: ${property.bedrooms ?? '-'}   Bathrooms: ${property.bathrooms ?? '-'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF6E7583),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: Color(0xFF1C2A4A),
-                ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: Color(0xFF1C2A4A),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (dealStatusText != null) ...[
+                  _ContextPill(
+                    label: dealStatusText,
+                    color: dealStatusColor,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (_propertyId != null)
+                  _ContextActionButton(
+                    label: 'View Property',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => PropertyDetailPage(
+                                propertyId: property.propertyId,
+                              ),
+                        ),
+                      );
+                    },
+                  ),
+                const Spacer(),
+                _buildDealActions(),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -863,16 +915,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    _buildPropertySummaryCard(),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildDealActions(),
-                      ),
-                    ),
+                  child: Column(
+                    children: [
+                      _buildPropertySummaryCard(),
                     Expanded(
                       child:
                           _isLoading
@@ -1007,75 +1052,93 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                           top: BorderSide(color: Color(0xFFDDE0E5)),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              maxLines: 3,
-                              minLines: 1,
-                              decoration: InputDecoration(
-                                hintText: 'Type a message...',
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFDDE0E5),
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFDDE0E5),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFF1C2A4A),
-                                  ),
-                                ),
-                              ),
+                          if (_composerMessage != null) ...[
+                            _InlineFeedbackCard(
+                              message: _composerMessage!,
+                              isError: _isComposerMessageError,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            height: 46,
-                            width: 46,
-                            child: ElevatedButton(
-                              onPressed: _isSending ? null : _send,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child:
-                                  _isSending
-                                      ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : const Icon(
-                                        Icons.send_rounded,
-                                        size: 20,
+                            const SizedBox(height: 8),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _messageController,
+                                  maxLines: 3,
+                                  minLines: 1,
+                                  onChanged: (_) {
+                                    if (_composerMessage == null) return;
+                                    setState(() {
+                                      _composerMessage = null;
+                                    });
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'Type a message...',
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFDDE0E5),
                                       ),
-                            ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFDDE0E5),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF1C2A4A),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 46,
+                                width: 46,
+                                child: ElevatedButton(
+                                  onPressed: _isSending ? null : _send,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child:
+                                      _isSending
+                                          ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Icon(
+                                            Icons.send_rounded,
+                                            size: 20,
+                                          ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1086,6 +1149,121 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ContextPill extends StatelessWidget {
+  const _ContextPill({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = Color.lerp(color, Colors.white, 0.86)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineFeedbackCard extends StatelessWidget {
+  const _InlineFeedbackCard({
+    required this.message,
+    required this.isError,
+  });
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final background =
+        isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
+    final border =
+        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextActionButton extends StatelessWidget {
+  const _ContextActionButton({
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF1C2A4A),
+          side: const BorderSide(color: Color(0xFFD7DBE2)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          textStyle: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        child: Text(label),
       ),
     );
   }

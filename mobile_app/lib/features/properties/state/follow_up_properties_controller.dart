@@ -6,20 +6,28 @@ class OwnerPropertyItem {
   const OwnerPropertyItem({
     required this.propertyId,
     required this.propertyType,
+    required this.transactionType,
+    required this.rentType,
     required this.propertyState,
     required this.propertyCity,
     required this.status,
     required this.bedrooms,
     required this.bathrooms,
+    required this.priceLabel,
+    required this.imageUrl,
   });
 
   final int propertyId;
   final String propertyType;
+  final String transactionType;
+  final String? rentType;
   final String propertyState;
   final String propertyCity;
   final String status;
   final int? bedrooms;
   final int? bathrooms;
+  final String priceLabel;
+  final String? imageUrl;
 
   String get title => '$propertyType - $propertyState/$propertyCity';
 
@@ -37,11 +45,16 @@ class OwnerPropertyItem {
     return OwnerPropertyItem(
       propertyId: id,
       propertyType: (map['property_type'] as String?) ?? 'Property',
+      transactionType:
+          ((map['transaction_type'] as String?) ?? 'buy').toLowerCase(),
+      rentType: (map['rent_type'] as String?)?.toLowerCase(),
       propertyState: (map['property_state'] as String?) ?? '-',
       propertyCity: (map['property_city'] as String?) ?? '-',
       status: ((map['status'] as String?) ?? 'active').toLowerCase(),
       bedrooms: parseInt(map['bedrooms']),
       bathrooms: parseInt(map['bathrooms']),
+      priceLabel: map['price']?.toString() ?? '-',
+      imageUrl: map['image_url']?.toString(),
     );
   }
 }
@@ -104,6 +117,20 @@ class FollowUpPropertiesController {
       return e.message.isEmpty ? 'Failed to delete property.' : e.message;
     } catch (_) {
       return 'Unexpected error while deleting property.';
+    }
+  }
+
+  Future<String?> updatePropertyStatus({
+    required int propertyId,
+    required String status,
+  }) async {
+    try {
+      await _repository.updatePropertyStatus(propertyId: propertyId, status: status);
+      return null;
+    } on PostgrestException catch (e) {
+      return e.message.isEmpty ? 'Failed to update property status.' : e.message;
+    } catch (_) {
+      return 'Unexpected error while updating property status.';
     }
   }
 }
