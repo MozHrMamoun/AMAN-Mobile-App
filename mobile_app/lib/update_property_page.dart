@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -93,10 +95,30 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
           ..clear()
           ..addAll(picked);
         _formMessage =
-            '${picked.length} new image(s) selected. They will replace the current set after update.';
+            '${picked.length} new image(s) selected. Drag to reorder and the first image will be used as the cover.';
         _isFormMessageError = false;
       });
     }
+  }
+
+  void _removePropertyImage(int index) {
+    setState(() {
+      _propertyImageFiles.removeAt(index);
+      if (_propertyImageFiles.isEmpty) {
+        _formMessage = 'New image selection cleared. Current saved images will stay unchanged.';
+      }
+    });
+  }
+
+  void _reorderPropertyImages(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final item = _propertyImageFiles.removeAt(oldIndex);
+      _propertyImageFiles.insert(newIndex, item);
+      _formMessage =
+          'Image order updated. The first image will be used as the cover.';
+      _isFormMessageError = false;
+    });
   }
 
   Future<void> _updateProperty() async {
@@ -330,6 +352,123 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                                             const SizedBox(height: 10),
                                           ],
                                           if (_propertyImageFiles.isNotEmpty) ...[
+                                            const SizedBox(height: 10),
+                                            SizedBox(
+                                              height: 82,
+                                              child: ReorderableListView.builder(
+                                                scrollDirection: Axis.horizontal,
+                                                onReorder: _reorderPropertyImages,
+                                                proxyDecorator:
+                                                    (child, _, __) => Material(
+                                                      color: Colors.transparent,
+                                                      child: child,
+                                                    ),
+                                                itemCount:
+                                                    _propertyImageFiles.length,
+                                                itemBuilder: (context, index) {
+                                                  final file =
+                                                      _propertyImageFiles[index];
+                                                  return ReorderableDragStartListener(
+                                                    key: ValueKey(
+                                                      '${file.path}-$index',
+                                                    ),
+                                                    index: index,
+                                                    child: Container(
+                                                      margin: EdgeInsets.only(
+                                                        right:
+                                                            index ==
+                                                                    _propertyImageFiles
+                                                                            .length -
+                                                                        1
+                                                                ? 0
+                                                                : 10,
+                                                      ),
+                                                      child: Stack(
+                                                        children: [
+                                                          ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                            child: Image.file(
+                                                              File(file.path),
+                                                              width: 82,
+                                                              height: 82,
+                                                              fit: BoxFit.cover,
+                                                            ),
+                                                          ),
+                                                          if (index == 0)
+                                                            Positioned(
+                                                              left: 6,
+                                                              top: 6,
+                                                              child: Container(
+                                                                padding:
+                                                                    const EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          6,
+                                                                      vertical:
+                                                                          2,
+                                                                    ),
+                                                                decoration: BoxDecoration(
+                                                                  color: const Color(
+                                                                    0xFF1C2A4A,
+                                                                  ),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        6,
+                                                                      ),
+                                                                ),
+                                                                child: const Text(
+                                                                  'Cover',
+                                                                  style: TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          Positioned(
+                                                            right: 4,
+                                                            top: 4,
+                                                            child: InkWell(
+                                                              onTap:
+                                                                  () => _removePropertyImage(
+                                                                    index,
+                                                                  ),
+                                                              child: Container(
+                                                                width: 22,
+                                                                height: 22,
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors
+                                                                      .black54,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        11,
+                                                                      ),
+                                                                ),
+                                                                child: const Icon(
+                                                                  Icons
+                                                                      .close_rounded,
+                                                                  color: Colors
+                                                                      .white,
+                                                                  size: 14,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
                                             Container(
                                               width: double.infinity,
                                               padding: const EdgeInsets.all(10),
@@ -342,7 +481,7 @@ class _UpdatePropertyPageState extends State<UpdatePropertyPage> {
                                                 ),
                                               ),
                                               child: Text(
-                                                '${_propertyImageFiles.length} new image(s) selected. These will replace the current images after update.',
+                                                '${_propertyImageFiles.length} new image(s) selected. These will replace the current images after update, and the first image will be used as the cover.',
                                                 style: const TextStyle(
                                                   color: Color(0xFF355C7D),
                                                   fontSize: 12.5,

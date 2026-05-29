@@ -141,20 +141,10 @@ class UpdatePropertyController {
       );
 
       if (newImages.isNotEmpty) {
-        final urls = <String>[];
-        for (var i = 0; i < newImages.length; i++) {
-          final url = await _repository.uploadPropertyImage(
-            ownerId: userId,
-            propertyId: propertyId,
-            file: newImages[i],
-            index: i,
-          );
-          urls.add(url);
-        }
-        await _repository.replacePropertyImages(
+        await _repository.replacePropertyImagesFromFiles(
           propertyId: propertyId,
           ownerId: userId,
-          imageUrls: urls,
+          files: newImages,
         );
       }
 
