@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'core/app_session.dart';
 import 'edit_information_page.dart';
@@ -28,6 +29,8 @@ class _SearchResultPageState extends State<SearchResultPage> {
   final WishedPropertyController _wishedPropertyController =
       WishedPropertyController();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _priceFromController = TextEditingController();
+  final TextEditingController _priceToController = TextEditingController();
   bool _isLoading = true;
   String? _errorMessage;
   List<SearchPropertyItem> _items = const [];
@@ -36,11 +39,30 @@ class _SearchResultPageState extends State<SearchResultPage> {
   int _page = 0;
   int _unreadNotifications = 0;
   bool _isSavingPreference = false;
+  late SearchCriteria _criteria;
   static const int _pageSize = 20;
+  static const List<String> _roomCounts = ['Any', '1', '2', '3', '4', '5+'];
+  String _selectedBedrooms = 'Any';
+  String _selectedBathrooms = 'Any';
 
   @override
   void initState() {
     super.initState();
+    _criteria = widget.criteria;
+    _selectedBedrooms = _countToFilterLabel(
+      _criteria.bedrooms,
+      _criteria.bedroomsAtLeast,
+    );
+    _selectedBathrooms = _countToFilterLabel(
+      _criteria.bathrooms,
+      _criteria.bathroomsAtLeast,
+    );
+    if (_criteria.minPrice != null) {
+      _priceFromController.text = _criteria.minPrice!.toStringAsFixed(0);
+    }
+    if (_criteria.maxPrice != null) {
+      _priceToController.text = _criteria.maxPrice!.toStringAsFixed(0);
+    }
     _load(reset: true);
     _loadNotificationCount();
     _scrollController.addListener(_onScroll);
@@ -49,6 +71,8 @@ class _SearchResultPageState extends State<SearchResultPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _priceFromController.dispose();
+    _priceToController.dispose();
     super.dispose();
   }
 
@@ -76,7 +100,7 @@ class _SearchResultPageState extends State<SearchResultPage> {
     }
 
     final result = await _controller.search(
-      widget.criteria,
+      _criteria,
       limit: _pageSize,
       offset: _page * _pageSize,
     );
@@ -144,20 +168,14 @@ class _SearchResultPageState extends State<SearchResultPage> {
       _isSavingPreference = true;
     });
 
-    final preferredPrice = widget.criteria.maxPrice ?? widget.criteria.minPrice;
+    final preferredPrice = _criteria.maxPrice ?? _criteria.minPrice;
     final result = await _wishedPropertyController.saveWish(
-      isBuy: widget.criteria.transactionType.toLowerCase() != 'rent',
-      rentType: _formatRentType(widget.criteria.rentType),
-      propertyType: widget.criteria.propertyType,
-      city: widget.criteria.propertyCity,
-      bedrooms: _countToLabel(
-        widget.criteria.bedrooms,
-        widget.criteria.bedroomsAtLeast,
-      ),
-      bathrooms: _countToLabel(
-        widget.criteria.bathrooms,
-        widget.criteria.bathroomsAtLeast,
-      ),
+      isBuy: _criteria.transactionType.toLowerCase() != 'rent',
+      rentType: _formatRentType(_criteria.rentType),
+      propertyType: _criteria.propertyType,
+      city: _criteria.propertyCity,
+      bedrooms: _countToLabel(_criteria.bedrooms, _criteria.bedroomsAtLeast),
+      bathrooms: _countToLabel(_criteria.bathrooms, _criteria.bathroomsAtLeast),
       priceText: preferredPrice?.toStringAsFixed(0) ?? '',
     );
     if (!mounted) return;
@@ -196,6 +214,72 @@ class _SearchResultPageState extends State<SearchResultPage> {
   String? _formatRentType(String? rentType) {
     if (rentType == null || rentType.isEmpty) return null;
     return '${rentType[0].toUpperCase()}${rentType.substring(1)}';
+  }
+
+  String _countToFilterLabel(int? value, bool atLeast) {
+    if (value == null) return 'Any';
+    if (atLeast && value >= 5) return '5+';
+    return value.toString();
+  }
+
+  int? _parseCountFilter(String value) {
+    if (value == 'Any') return null;
+    return int.tryParse(value.replaceAll('+', ''));
+  }
+
+  bool _isAtLeastFilter(String value) {
+    return value.endsWith('+');
+  }
+
+  double? _parsePrice(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return double.tryParse(trimmed);
+  }
+
+  Future<void> _applyTopFilters() async {
+    FocusScope.of(context).unfocus();
+
+    final minPrice = _parsePrice(_priceFromController.text);
+    final rawMaxPrice = _parsePrice(_priceToController.text);
+    final maxPrice =
+        minPrice != null && rawMaxPrice != null && rawMaxPrice < minPrice
+            ? minPrice
+            : rawMaxPrice;
+
+    setState(() {
+      _criteria = _criteria.copyWith(
+        bedrooms: _parseCountFilter(_selectedBedrooms),
+        bedroomsAtLeast: _isAtLeastFilter(_selectedBedrooms),
+        clearBedrooms: _selectedBedrooms == 'Any',
+        bathrooms: _parseCountFilter(_selectedBathrooms),
+        bathroomsAtLeast: _isAtLeastFilter(_selectedBathrooms),
+        clearBathrooms: _selectedBathrooms == 'Any',
+        minPrice: minPrice,
+        clearMinPrice: minPrice == null,
+        maxPrice: maxPrice,
+        clearMaxPrice: maxPrice == null,
+      );
+    });
+
+    await _load(reset: true);
+  }
+
+  Future<void> _clearTopFilters() async {
+    FocusScope.of(context).unfocus();
+    _priceFromController.clear();
+    _priceToController.clear();
+    setState(() {
+      _selectedBedrooms = 'Any';
+      _selectedBathrooms = 'Any';
+      _criteria = _criteria.copyWith(
+        clearBedrooms: true,
+        clearBathrooms: true,
+        clearMinPrice: true,
+        clearMaxPrice: true,
+      );
+    });
+    await _load(reset: true);
   }
 
   @override
@@ -274,8 +358,31 @@ class _SearchResultPageState extends State<SearchResultPage> {
                           },
                         ),
                       ),
-                      const SizedBox(height: 22),
-                      const SizedBox(height: 46),
+                      const SizedBox(height: 18),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                        child: _ResultsFilterCard(
+                          selectedBedrooms: _selectedBedrooms,
+                          selectedBathrooms: _selectedBathrooms,
+                          roomCounts: _roomCounts,
+                          priceFromController: _priceFromController,
+                          priceToController: _priceToController,
+                          onBedroomsChanged: (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedBedrooms = value;
+                            });
+                          },
+                          onBathroomsChanged: (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedBathrooms = value;
+                            });
+                          },
+                          onApply: _applyTopFilters,
+                          onClear: _clearTopFilters,
+                        ),
+                      ),
                       Expanded(
                         child:
                             _isLoading
@@ -303,49 +410,68 @@ class _SearchResultPageState extends State<SearchResultPage> {
                                     padding: const EdgeInsets.all(24),
                                     child: _SearchEmptyState(
                                       isSaving: _isSavingPreference,
-                                      onDismiss: () => Navigator.of(context).pop(),
+                                      onDismiss:
+                                          () => Navigator.of(context).pop(),
                                       onSaveTap: _openRecommendation,
                                     ),
                                   ),
                                 )
                                 : RefreshIndicator(
                                   onRefresh: () => _load(reset: true),
-                                  child: GridView.builder(
-                                    controller: _scrollController,
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      0,
-                                      16,
-                                      16,
-                                    ),
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          crossAxisSpacing: 16,
-                                          mainAxisSpacing: 16,
-                                          mainAxisExtent: 340,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final showSingleColumn =
+                                          constraints.maxWidth < 350;
+                                      return GridView.builder(
+                                        controller: _scrollController,
+                                        padding: const EdgeInsets.fromLTRB(
+                                          16,
+                                          0,
+                                          16,
+                                          16,
                                         ),
-                                    itemCount:
-                                        _items.length +
-                                        (_isLoadingMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index >= _items.length) {
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
-                                        );
-                                      }
-                                      final item = _items[index];
-                                      return _ResultCard(
-                                        item: item,
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder:
-                                                  (_) => PropertyDetailPage(
-                                                    propertyId: item.propertyId,
-                                                  ),
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount:
+                                                  showSingleColumn ? 1 : 2,
+                                              crossAxisSpacing: 12,
+                                              mainAxisSpacing: 12,
+                                              mainAxisExtent:
+                                                  showSingleColumn ? 278 : 292,
                                             ),
+                                        itemCount:
+                                            _items.length +
+                                            (_isLoadingMore
+                                                ? 1
+                                                : (!_hasMore ? 1 : 0)),
+                                        itemBuilder: (context, index) {
+                                          if (index >= _items.length) {
+                                            if (_isLoadingMore) {
+                                              return const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              );
+                                            }
+                                            return _SearchReachedEndState(
+                                              isSaving: _isSavingPreference,
+                                              onSaveTap: _openRecommendation,
+                                            );
+                                          }
+                                          final item = _items[index];
+                                          return _ResultCard(
+                                            item: item,
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (_) => PropertyDetailPage(
+                                                        propertyId:
+                                                            item.propertyId,
+                                                      ),
+                                                ),
+                                              );
+                                            },
                                           );
                                         },
                                       );
@@ -400,6 +526,273 @@ class _SearchResultPageState extends State<SearchResultPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ResultsFilterCard extends StatelessWidget {
+  const _ResultsFilterCard({
+    required this.selectedBedrooms,
+    required this.selectedBathrooms,
+    required this.roomCounts,
+    required this.priceFromController,
+    required this.priceToController,
+    required this.onBedroomsChanged,
+    required this.onBathroomsChanged,
+    required this.onApply,
+    required this.onClear,
+  });
+
+  final String selectedBedrooms;
+  final String selectedBathrooms;
+  final List<String> roomCounts;
+  final TextEditingController priceFromController;
+  final TextEditingController priceToController;
+  final ValueChanged<String?> onBedroomsChanged;
+  final ValueChanged<String?> onBathroomsChanged;
+  final VoidCallback onApply;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0E1C2A4A),
+            offset: Offset(0, 6),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.tune_rounded, color: Color(0xFF1C2A4A), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Refine Results',
+                style: TextStyle(
+                  color: Color(0xFF1F2430),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _FilterDropdown(
+                  label: 'Bedrooms',
+                  value: selectedBedrooms,
+                  items: roomCounts,
+                  onChanged: onBedroomsChanged,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _FilterDropdown(
+                  label: 'Bathrooms',
+                  value: selectedBathrooms,
+                  items: roomCounts,
+                  onChanged: onBathroomsChanged,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _FilterTextField(
+                  label: 'Price From',
+                  controller: priceFromController,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _FilterTextField(
+                  label: 'Price To',
+                  controller: priceToController,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onClear,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1C2A4A),
+                    side: const BorderSide(color: Color(0xFFD7DBE2)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    minimumSize: const Size.fromHeight(38),
+                  ),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onApply,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1C2A4A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    minimumSize: const Size.fromHeight(38),
+                  ),
+                  child: const Text(
+                    'Apply Filters',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF4A5160),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          value: value,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF7F8FA),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1C2A4A)),
+            ),
+          ),
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item),
+                    ),
+                  )
+                  .toList(),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterTextField extends StatelessWidget {
+  const _FilterTextField({required this.label, required this.controller});
+
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF4A5160),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            hintText: label.endsWith('From') ? 'Minimum' : 'Maximum',
+            filled: true,
+            fillColor: const Color(0xFFF7F8FA),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1C2A4A)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -516,6 +909,95 @@ class _SearchEmptyState extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchReachedEndState extends StatelessWidget {
+  const _SearchReachedEndState({
+    required this.isSaving,
+    required this.onSaveTap,
+  });
+
+  final bool isSaving;
+  final VoidCallback onSaveTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE0E5)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.travel_explore_rounded,
+            color: Color(0xFF8E949F),
+            size: 30,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Reached the end of the results',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF1F2430),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            "Didn't find exactly what you like? Save this search as a recommendation and we can match you when something closer appears.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF8E949F),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: isSaving ? null : onSaveTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2A4A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child:
+                  isSaving
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : const Text(
+                        'Save As Recommendation',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+            ),
           ),
         ],
       ),
@@ -661,7 +1143,7 @@ class _ResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
             color: const Color(0xFFF2F2F3),
             borderRadius: BorderRadius.circular(12),
@@ -680,7 +1162,7 @@ class _ResultCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
-                  height: 156,
+                  height: 124,
                   width: double.infinity,
                   child:
                       item.imageUrl == null
@@ -708,16 +1190,16 @@ class _ResultCard extends StatelessWidget {
                           ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 item.propertyType,
                 style: const TextStyle(
                   color: Color(0xFF1F2430),
-                  fontSize: 34 / 2,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -771,7 +1253,7 @@ class _CardInfoLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Text.rich(
         TextSpan(
           children: [
@@ -779,7 +1261,7 @@ class _CardInfoLine extends StatelessWidget {
               text: '$label: ',
               style: const TextStyle(
                 color: Color(0xFF4A5160),
-                fontSize: 13.5,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w700,
                 height: 1.2,
               ),
@@ -788,7 +1270,7 @@ class _CardInfoLine extends StatelessWidget {
               text: value,
               style: const TextStyle(
                 color: Color(0xFF7D8491),
-                fontSize: 13.5,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 height: 1.2,
               ),

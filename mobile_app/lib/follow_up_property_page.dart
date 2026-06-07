@@ -629,49 +629,66 @@ class _FollowUpCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Column(
             children: [
-              _ActionRow(
-                label: 'View',
-                icon: Icons.visibility_rounded,
-                accentColor: const Color(0xFF1C2A4A),
-                backgroundColor: const Color(0xFFEDF1F8),
-                borderColor: const Color(0xFFD7E0F0),
-                onTap: onView,
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionRow(
+                      label: 'View',
+                      icon: Icons.visibility_rounded,
+                      accentColor: const Color(0xFF1C2A4A),
+                      backgroundColor: const Color(0xFFEDF1F8),
+                      borderColor: const Color(0xFFD7E0F0),
+                      onTap: onView,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionRow(
+                      label: 'Update',
+                      icon: Icons.edit_note_rounded,
+                      accentColor: const Color(0xFF355C7D),
+                      backgroundColor: const Color(0xFFEAF0F6),
+                      borderColor: const Color(0xFFD4DFEA),
+                      onTap: onUpdate,
+                    ),
+                  ),
+                ],
               ),
-              _ActionRow(
-                label: 'Update',
-                icon: Icons.edit_note_rounded,
-                accentColor: const Color(0xFF355C7D),
-                backgroundColor: const Color(0xFFEAF0F6),
-                borderColor: const Color(0xFFD4DFEA),
-                onTap: onUpdate,
-              ),
-              _ActionRow(
-                label: isActive ? 'Deactivate' : 'Activate',
-                icon: isActive
-                    ? Icons.pause_circle_filled_rounded
-                    : Icons.play_circle_fill_rounded,
-                accentColor: isActive
-                    ? const Color(0xFF7A6F8F)
-                    : const Color(0xFF2F7D32),
-                backgroundColor: isActive
-                    ? const Color(0xFFF0EAF7)
-                    : const Color(0xFFE4F3E8),
-                borderColor: isActive
-                    ? const Color(0xFFE1D5F2)
-                    : const Color(0xFFCFE8D6),
-                onTap: onToggleStatus,
-              ),
-              _ActionRow(
-                label: isDeleting ? 'Deleting' : 'Delete',
-                icon: Icons.delete_rounded,
-                accentColor: const Color(0xFF9A4B5A),
-                backgroundColor: const Color(0xFFF8EDEF),
-                borderColor: const Color(0xFFE8CDD4),
-                onTap: isDeleting ? null : onDelete,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionRow(
+                      label: isActive ? 'Deactivate' : 'Activate',
+                      icon: isActive
+                          ? Icons.pause_circle_filled_rounded
+                          : Icons.play_circle_fill_rounded,
+                      accentColor: isActive
+                          ? const Color(0xFF7A6F8F)
+                          : const Color(0xFF2F7D32),
+                      backgroundColor: isActive
+                          ? const Color(0xFFF0EAF7)
+                          : const Color(0xFFE4F3E8),
+                      borderColor: isActive
+                          ? const Color(0xFFE1D5F2)
+                          : const Color(0xFFCFE8D6),
+                      onTap: onToggleStatus,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionRow(
+                      label: isDeleting ? 'Deleting' : 'Delete',
+                      icon: Icons.delete_rounded,
+                      accentColor: const Color(0xFF9A4B5A),
+                      backgroundColor: const Color(0xFFF8EDEF),
+                      borderColor: const Color(0xFFE8CDD4),
+                      onTap: isDeleting ? null : onDelete,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -845,35 +862,35 @@ class _ActionRow extends StatelessWidget {
         isEnabled ? backgroundColor : const Color(0xFFF2F4F7);
     final resolvedBorder = isEnabled ? borderColor : const Color(0xFFDDE3EA);
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: resolvedBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: resolvedBorder),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: resolvedAccent, size: 20),
-                const SizedBox(width: 8),
-                Text(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: resolvedBackground,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: resolvedBorder),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: resolvedAccent, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
                   label,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: resolvedAccent,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

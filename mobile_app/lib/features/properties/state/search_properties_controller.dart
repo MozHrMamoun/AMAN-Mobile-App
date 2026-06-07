@@ -28,6 +28,41 @@ class SearchCriteria {
   final bool bathroomsAtLeast;
   final double? minPrice;
   final double? maxPrice;
+
+  SearchCriteria copyWith({
+    String? transactionType,
+    String? rentType,
+    bool clearRentType = false,
+    String? propertyType,
+    String? propertyState,
+    String? propertyCity,
+    int? bedrooms,
+    bool? bedroomsAtLeast,
+    bool clearBedrooms = false,
+    int? bathrooms,
+    bool? bathroomsAtLeast,
+    bool clearBathrooms = false,
+    double? minPrice,
+    bool clearMinPrice = false,
+    double? maxPrice,
+    bool clearMaxPrice = false,
+  }) {
+    return SearchCriteria(
+      transactionType: transactionType ?? this.transactionType,
+      rentType: clearRentType ? null : (rentType ?? this.rentType),
+      propertyType: propertyType ?? this.propertyType,
+      propertyState: propertyState ?? this.propertyState,
+      propertyCity: propertyCity ?? this.propertyCity,
+      bedrooms: clearBedrooms ? null : (bedrooms ?? this.bedrooms),
+      bedroomsAtLeast:
+          clearBedrooms ? false : (bedroomsAtLeast ?? this.bedroomsAtLeast),
+      bathrooms: clearBathrooms ? null : (bathrooms ?? this.bathrooms),
+      bathroomsAtLeast:
+          clearBathrooms ? false : (bathroomsAtLeast ?? this.bathroomsAtLeast),
+      minPrice: clearMinPrice ? null : (minPrice ?? this.minPrice),
+      maxPrice: clearMaxPrice ? null : (maxPrice ?? this.maxPrice),
+    );
+  }
 }
 
 class SearchPropertyItem {
@@ -63,11 +98,13 @@ class SearchPropertyItem {
     }
 
     final idRaw = row['property_id'];
-    final propertyId = idRaw is int ? idRaw : (idRaw is num ? idRaw.toInt() : 0);
+    final propertyId =
+        idRaw is int ? idRaw : (idRaw is num ? idRaw.toInt() : 0);
 
     return SearchPropertyItem(
       propertyId: propertyId,
-      transactionType: ((row['transaction_type'] as String?) ?? '').toLowerCase(),
+      transactionType:
+          ((row['transaction_type'] as String?) ?? '').toLowerCase(),
       rentType: (row['rent_type'] as String?)?.toLowerCase(),
       propertyType: (row['property_type'] as String?) ?? 'Property',
       bedrooms: parseInt(row['bedrooms']),
@@ -102,7 +139,7 @@ class SearchPropertiesResult {
 
 class SearchPropertiesController {
   SearchPropertiesController({PropertyRepository? repository})
-      : _repository = repository ?? PropertyRepository();
+    : _repository = repository ?? PropertyRepository();
 
   final PropertyRepository _repository;
 

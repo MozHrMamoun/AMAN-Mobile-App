@@ -141,6 +141,21 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     await _loadDashboard();
   }
 
+  Future<void> _openAllActivities() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => _OwnerActivityListPage(
+              controller: _controller,
+              formatRelativeTime: _formatRelativeTime,
+              onOpenActivity: _openActivity,
+            ),
+      ),
+    );
+    await _loadDashboard();
+  }
+
   void _onNavTap(int index) {
     if (AppSession.isGuestMode && index != 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -320,13 +335,35 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                         ],
                       ),
                       const SizedBox(height: 22),
-                      const Text(
-                        'Activity',
-                        style: TextStyle(
-                          color: Color(0xFF1F2430),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Activity',
+                              style: TextStyle(
+                                color: Color(0xFF1F2430),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (_activities.isNotEmpty)
+                            TextButton(
+                              onPressed: _openAllActivities,
+                              style: TextButton.styleFrom(
+                                foregroundColor: primary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              child: const Text('View All'),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       const Text(
@@ -364,7 +401,9 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                               subject: activity.peerName,
                               message: activity.lastMessageText,
                               statusLabel: activity.statusLabel,
-                              timeLabel: _formatRelativeTime(activity.lastMessageAt),
+                              timeLabel: _formatRelativeTime(
+                                activity.lastMessageAt,
+                              ),
                               icon: switch (activity.kind) {
                                 OwnerActivityKind.chat =>
                                   Icons.mark_chat_unread_rounded,
@@ -376,12 +415,15 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                                   Icons.pause_circle_filled_rounded,
                               },
                               accentColor: switch (activity.kind) {
-                                OwnerActivityKind.chat =>
-                                  const Color(0xFF355C7D),
-                                OwnerActivityKind.dealPending =>
-                                  const Color(0xFFD68600),
-                                OwnerActivityKind.dealCompleted =>
-                                  const Color(0xFF2F7D32),
+                                OwnerActivityKind.chat => const Color(
+                                  0xFF355C7D,
+                                ),
+                                OwnerActivityKind.dealPending => const Color(
+                                  0xFFD68600,
+                                ),
+                                OwnerActivityKind.dealCompleted => const Color(
+                                  0xFF2F7D32,
+                                ),
                                 OwnerActivityKind.listingInactive =>
                                   const Color(0xFF7A6F8F),
                               },
@@ -500,6 +542,159 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _OwnerActivityListPage extends StatefulWidget {
+  const _OwnerActivityListPage({
+    required this.controller,
+    required this.formatRelativeTime,
+    required this.onOpenActivity,
+  });
+
+  final OwnerHomeController controller;
+  final String Function(DateTime? value) formatRelativeTime;
+  final Future<void> Function(OwnerActivityItem activity) onOpenActivity;
+
+  @override
+  State<_OwnerActivityListPage> createState() => _OwnerActivityListPageState();
+}
+
+class _OwnerActivityListPageState extends State<_OwnerActivityListPage> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<OwnerActivityItem> _activities = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivities();
+  }
+
+  Future<void> _loadActivities() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final result = await widget.controller.loadDashboard(activityLimit: null);
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = result.errorMessage ?? 'Failed to load activity.';
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = false;
+      _activities = result.activities;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const page = Color(0xFFE9EAEC);
+
+    return Scaffold(
+      backgroundColor: page,
+      appBar: AppBar(
+        backgroundColor: page,
+        elevation: 0,
+        foregroundColor: const Color(0xFF1C2A4A),
+        title: const Text(
+          'All Activity',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+              ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF1F2430),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+              : RefreshIndicator(
+                onRefresh: _loadActivities,
+                child:
+                    _activities.isEmpty
+                        ? ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                          children: [
+                            _SectionEmptyState(
+                              title: 'No owner activity yet',
+                              description:
+                                  'When a seeker messages you, starts a deal, or one of your listings changes state, it will appear here.',
+                              actionLabel: 'Refresh',
+                              onTap: _loadActivities,
+                            ),
+                          ],
+                        )
+                        : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                          itemCount: _activities.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final activity = _activities[index];
+                            return _ActivityCard(
+                              title: activity.title,
+                              subject: activity.peerName,
+                              message: activity.lastMessageText,
+                              statusLabel: activity.statusLabel,
+                              timeLabel: widget.formatRelativeTime(
+                                activity.lastMessageAt,
+                              ),
+                              icon: switch (activity.kind) {
+                                OwnerActivityKind.chat =>
+                                  Icons.mark_chat_unread_rounded,
+                                OwnerActivityKind.dealPending =>
+                                  Icons.handshake_rounded,
+                                OwnerActivityKind.dealCompleted =>
+                                  Icons.verified_rounded,
+                                OwnerActivityKind.listingInactive =>
+                                  Icons.pause_circle_filled_rounded,
+                              },
+                              accentColor: switch (activity.kind) {
+                                OwnerActivityKind.chat => const Color(
+                                  0xFF355C7D,
+                                ),
+                                OwnerActivityKind.dealPending => const Color(
+                                  0xFFD68600,
+                                ),
+                                OwnerActivityKind.dealCompleted => const Color(
+                                  0xFF2F7D32,
+                                ),
+                                OwnerActivityKind.listingInactive =>
+                                  const Color(0xFF7A6F8F),
+                              },
+                              actionLabel: switch (activity.kind) {
+                                OwnerActivityKind.chat => 'Open chat',
+                                OwnerActivityKind.dealPending => 'Review deal',
+                                OwnerActivityKind.dealCompleted => 'View deal',
+                                OwnerActivityKind.listingInactive =>
+                                  'Open listing',
+                              },
+                              onTap: () async {
+                                await widget.onOpenActivity(activity);
+                                if (!mounted) return;
+                                await _loadActivities();
+                              },
+                            );
+                          },
+                        ),
+              ),
     );
   }
 }
@@ -714,11 +909,7 @@ class _ActivityCard extends StatelessWidget {
                   color: tint,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: accentColor,
-                ),
+                child: Icon(icon, size: 22, color: accentColor),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -869,11 +1060,7 @@ class _SectionEmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.inbox_rounded,
-            color: Color(0xFF8E949F),
-            size: 28,
-          ),
+          const Icon(Icons.inbox_rounded, color: Color(0xFF8E949F), size: 28),
           const SizedBox(height: 10),
           Text(
             title,

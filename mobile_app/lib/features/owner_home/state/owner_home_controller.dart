@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/owner_home_repository.dart';
 
@@ -75,11 +75,11 @@ class OwnerDashboardResult {
 
 class OwnerHomeController {
   OwnerHomeController({OwnerHomeRepository? repository})
-      : _repository = repository ?? OwnerHomeRepository();
+    : _repository = repository ?? OwnerHomeRepository();
 
   final OwnerHomeRepository _repository;
 
-  Future<OwnerDashboardResult> loadDashboard({int activityLimit = 5}) async {
+  Future<OwnerDashboardResult> loadDashboard({int? activityLimit = 5}) async {
     try {
       final profile = await _repository.fetchCurrentUserProfile();
       if (profile == null) {
@@ -100,13 +100,20 @@ class OwnerHomeController {
       final pendingDeals = await _repository.countPendingDeals(ownerId);
 
       final chatRows = await _repository.fetchChatsForUser(ownerId);
-      final dealRows = await _repository.fetchDealsForOwner(ownerId);
-      final propertyRows = await _repository.fetchPropertiesForOwner(ownerId);
-      final chatIds = chatRows
-          .map((row) => row['chat_id'])
-          .whereType<num>()
-          .map((value) => value.toInt())
-          .toList();
+      final dealRows = await _repository.fetchDealsForOwner(
+        ownerId,
+        limit: activityLimit == null ? null : activityLimit * 2,
+      );
+      final propertyRows = await _repository.fetchPropertiesForOwner(
+        ownerId,
+        limit: activityLimit == null ? null : activityLimit * 2,
+      );
+      final chatIds =
+          chatRows
+              .map((row) => row['chat_id'])
+              .whereType<num>()
+              .map((value) => value.toInt())
+              .toList();
       final unreadMessages = await _repository.countUnreadMessages(
         currentUserId: ownerId,
         chatIds: chatIds,
@@ -116,10 +123,14 @@ class OwnerHomeController {
       for (final row in chatRows) {
         final ownerUserId = row['owner_user_id']?.toString();
         final seekerUserId = row['seeker_user_id']?.toString();
-        if (ownerUserId != null && ownerUserId.isNotEmpty && ownerUserId != ownerId) {
+        if (ownerUserId != null &&
+            ownerUserId.isNotEmpty &&
+            ownerUserId != ownerId) {
           peerIds.add(ownerUserId);
         }
-        if (seekerUserId != null && seekerUserId.isNotEmpty && seekerUserId != ownerId) {
+        if (seekerUserId != null &&
+            seekerUserId.isNotEmpty &&
+            seekerUserId != ownerId) {
           peerIds.add(seekerUserId);
         }
       }
@@ -128,7 +139,8 @@ class OwnerHomeController {
       DateTime? parseDate(dynamic value) {
         final raw = value?.toString();
         if (raw == null || raw.isEmpty) return null;
-        final hasOffset = raw.endsWith('Z') || raw.contains('+') || raw.contains('-');
+        final hasOffset =
+            raw.endsWith('Z') || raw.contains('+') || raw.contains('-');
         final normalized = hasOffset ? raw : '${raw}Z';
         return DateTime.tryParse(normalized);
       }
@@ -140,12 +152,17 @@ class OwnerHomeController {
       }
 
       final chatActivities = chatRows
-          .where((row) => (row['last_message_text'] as String?)?.trim().isNotEmpty == true)
+          .where(
+            (row) =>
+                (row['last_message_text'] as String?)?.trim().isNotEmpty ==
+                true,
+          )
           .map((row) {
             final ownerUserId = row['owner_user_id']?.toString();
             final seekerUserId = row['seeker_user_id']?.toString();
             final peerId = ownerUserId == ownerId ? seekerUserId : ownerUserId;
-            final safePeerId = (peerId == null || peerId.isEmpty) ? '-' : peerId;
+            final safePeerId =
+                (peerId == null || peerId.isEmpty) ? '-' : peerId;
             final chatIdRaw = row['chat_id'];
             return OwnerActivityItem(
               kind: OwnerActivityKind.chat,
@@ -172,24 +189,32 @@ class OwnerHomeController {
         final propertyId = parseInt(row['property_id']);
         final isCompleted = row['done_at'] != null;
         return OwnerActivityItem(
-          kind: isCompleted ? OwnerActivityKind.dealCompleted : OwnerActivityKind.dealPending,
+          kind:
+              isCompleted
+                  ? OwnerActivityKind.dealCompleted
+                  : OwnerActivityKind.dealPending,
           chatId: 0,
           dealId: dealId,
           seekerUserId: seekerId,
           ownerUserId: row['owner_id']?.toString(),
           peerName: names[seekerId] ?? 'Seeker',
           title: isCompleted ? 'Deal completed' : 'Deal requested',
-          lastMessageText: isCompleted
-              ? 'This property deal was completed successfully.'
-              : 'A seeker is waiting for your confirmation.',
-          lastMessageAt: parseDate(row['done_at']) ?? parseDate(row['created_at']),
+          lastMessageText:
+              isCompleted
+                  ? 'This property deal was completed successfully.'
+                  : 'A seeker is waiting for your confirmation.',
+          lastMessageAt:
+              parseDate(row['done_at']) ?? parseDate(row['created_at']),
           propertyId: propertyId,
           statusLabel: isCompleted ? 'Completed' : 'Deal',
         );
       });
 
       final propertyActivities = propertyRows
-          .where((row) => ((row['status'] as String?) ?? '').toLowerCase() != 'active')
+          .where(
+            (row) =>
+                ((row['status'] as String?) ?? '').toLowerCase() != 'active',
+          )
           .map((row) {
             final type = (row['property_type'] as String?) ?? 'Property';
             final state = (row['property_state'] as String?) ?? '-';
@@ -209,21 +234,18 @@ class OwnerHomeController {
             );
           });
 
-      final activities = [
-        ...chatActivities,
-        ...dealActivities,
-        ...propertyActivities,
-      ]
-          .toList()
-        ..sort((a, b) {
-          final aTime = a.lastMessageAt?.millisecondsSinceEpoch ?? 0;
-          final bTime = b.lastMessageAt?.millisecondsSinceEpoch ?? 0;
-          return bTime.compareTo(aTime);
-        });
+      final activities =
+          [...chatActivities, ...dealActivities, ...propertyActivities].toList()
+            ..sort((a, b) {
+              final aTime = a.lastMessageAt?.millisecondsSinceEpoch ?? 0;
+              final bTime = b.lastMessageAt?.millisecondsSinceEpoch ?? 0;
+              return bTime.compareTo(aTime);
+            });
 
-      final trimmedActivities = activities
-          .take(activityLimit)
-          .toList();
+      final trimmedActivities =
+          activityLimit == null
+              ? activities
+              : activities.take(activityLimit).toList();
 
       return OwnerDashboardResult.success(
         activeListings: activeListings,
@@ -237,7 +259,9 @@ class OwnerHomeController {
         e.message.isEmpty ? 'Failed to load dashboard.' : e.message,
       );
     } catch (_) {
-      return OwnerDashboardResult.error('Unexpected error while loading dashboard.');
+      return OwnerDashboardResult.error(
+        'Unexpected error while loading dashboard.',
+      );
     }
   }
 }

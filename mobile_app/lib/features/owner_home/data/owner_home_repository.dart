@@ -1,10 +1,10 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase_client_provider.dart';
 
 class OwnerHomeRepository {
   OwnerHomeRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   final SupabaseClient _client;
 
@@ -14,11 +14,12 @@ class OwnerHomeRepository {
     final userId = currentUserId;
     if (userId == null) return null;
 
-    final row = await _client
-        .from('user')
-        .select('user_id, role, full_name')
-        .eq('user_id', userId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('user')
+            .select('user_id, role, full_name')
+            .eq('user_id', userId)
+            .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
@@ -50,28 +51,42 @@ class OwnerHomeRepository {
     return (rows as List).length;
   }
 
-  Future<List<Map<String, dynamic>>> fetchDealsForOwner(String ownerId) async {
-    final rows = await _client
+  Future<List<Map<String, dynamic>>> fetchDealsForOwner(
+    String ownerId, {
+    int? limit,
+  }) async {
+    var query = _client
         .from('deals')
-        .select('deal_id, seeker_id, owner_id, property_id, done_at, created_at')
+        .select(
+          'deal_id, seeker_id, owner_id, property_id, done_at, created_at',
+        )
         .eq('owner_id', ownerId)
-        .order('created_at', ascending: false)
-        .limit(8);
+        .order('created_at', ascending: false);
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+    final rows = await query;
 
     return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
   }
 
-  Future<List<Map<String, dynamic>>> fetchPropertiesForOwner(String ownerId) async {
-    final rows = await _client
+  Future<List<Map<String, dynamic>>> fetchPropertiesForOwner(
+    String ownerId, {
+    int? limit,
+  }) async {
+    var query = _client
         .from('properties')
         .select(
           'property_id, property_type, property_state, property_city, status, updated_at',
         )
         .eq('owner_id', ownerId)
-        .order('updated_at', ascending: false)
-        .limit(8);
+        .order('updated_at', ascending: false);
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+    final rows = await query;
 
     return (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))

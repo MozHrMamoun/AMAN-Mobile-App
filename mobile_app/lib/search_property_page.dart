@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'core/app_theme.dart';
 import 'core/city_data.dart';
 import 'features/properties/state/search_properties_controller.dart';
@@ -33,7 +32,9 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
   final List<String> _roomCounts = ['1', '2', '3', '4', '5+'];
 
   List<String> get _availableCities =>
-      _propertyState == null ? const [] : (CityData.citiesByState[_propertyState] ?? const []);
+      _propertyState == null
+          ? const []
+          : (CityData.citiesByState[_propertyState] ?? const []);
 
   @override
   void initState() {
@@ -166,322 +167,342 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                     child: Column(
                       children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
-                        decoration: BoxDecoration(
-                          color: card,
-                          border: Border.all(color: border),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              offset: Offset(0, 3),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _DealTypeTab(
-                                    label: 'Buy',
-                                    selected: _isBuySelected,
-                                    onTap: () => setState(() {
-                                      _isBuySelected = true;
-                                      _rentType = null;
-                                    }),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+                          decoration: BoxDecoration(
+                            color: card,
+                            border: Border.all(color: border),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                offset: Offset(0, 3),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _DealTypeTab(
+                                      label: 'Buy',
+                                      selected: _isBuySelected,
+                                      onTap:
+                                          () => setState(() {
+                                            _isBuySelected = true;
+                                            _rentType = null;
+                                          }),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _DealTypeTab(
-                                    label: 'Rent',
-                                    selected: !_isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = false),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _DealTypeTab(
+                                      label: 'Rent',
+                                      selected: !_isBuySelected,
+                                      onTap:
+                                          () => setState(
+                                            () => _isBuySelected = false,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (!_isBuySelected) ...[
+                                const SizedBox(height: 14),
+                                _LabeledRow(
+                                  label: 'Type of Rent',
+                                  child: _SelectBox(
+                                    hint: 'Place Holder...',
+                                    value: _rentType,
+                                    items: _rentTypes,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _rentType = value;
+                                      });
+                                    },
+                                    border: border,
+                                    fill: inputBg,
                                   ),
                                 ),
                               ],
-                            ),
-                            if (!_isBuySelected) ...[
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 18),
                               _LabeledRow(
-                                label: 'Type of Rent',
+                                label: 'Property Type',
                                 child: _SelectBox(
                                   hint: 'Place Holder...',
-                                  value: _rentType,
-                                  items: _rentTypes,
+                                  value: _propertyType,
+                                  items: _propertyTypes,
                                   onChanged: (value) {
                                     setState(() {
-                                      _rentType = value;
+                                      _propertyType = value;
                                     });
                                   },
                                   border: border,
                                   fill: inputBg,
                                 ),
                               ),
-                            ],
-                            const SizedBox(height: 18),
-                            _LabeledRow(
-                              label: 'Property Type',
-                              child: _SelectBox(
-                                hint: 'Place Holder...',
-                                value: _propertyType,
-                                items: _propertyTypes,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _propertyType = value;
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
+                              const SizedBox(height: 14),
+                              _LabeledRow(
+                                label: 'Property State',
+                                child: _SelectBox(
+                                  hint: 'Place Holder...',
+                                  value: _propertyState,
+                                  items: CityData.states,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _propertyState = value;
+                                      if (!_availableCities.contains(
+                                        _propertyCity,
+                                      )) {
+                                        _propertyCity = null;
+                                      }
+                                    });
+                                  },
+                                  border: border,
+                                  fill: inputBg,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            _LabeledRow(
-                              label: 'Property State',
-                              child: _SelectBox(
-                                hint: 'Place Holder...',
-                                value: _propertyState,
-                                items: CityData.states,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _propertyState = value;
-                                    if (!_availableCities.contains(_propertyCity)) {
-                                      _propertyCity = null;
-                                    }
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
+                              const SizedBox(height: 14),
+                              _LabeledRow(
+                                label: 'Property City',
+                                child: _SelectBox(
+                                  hint:
+                                      _propertyState == null
+                                          ? 'Select state first'
+                                          : 'Place Holder...',
+                                  value: _propertyCity,
+                                  items: _availableCities,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _propertyCity = value;
+                                    });
+                                  },
+                                  border: border,
+                                  fill: inputBg,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            _LabeledRow(
-                              label: 'Property City',
-                              child: _SelectBox(
-                                hint: _propertyState == null
-                                    ? 'Select state first'
-                                    : 'Place Holder...',
-                                value: _propertyCity,
-                                items: _availableCities,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _propertyCity = value;
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
+                              const SizedBox(height: 14),
+                              _LabeledRow(
+                                label: 'Bedrooms',
+                                child: _SelectBox(
+                                  hint: '4',
+                                  value: _bedrooms,
+                                  items: _roomCounts,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _bedrooms = value;
+                                    });
+                                  },
+                                  border: border,
+                                  fill: inputBg,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            _LabeledRow(
-                              label: 'Bedrooms',
-                              child: _SelectBox(
-                                hint: '4',
-                                value: _bedrooms,
-                                items: _roomCounts,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _bedrooms = value;
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
+                              const SizedBox(height: 14),
+                              _LabeledRow(
+                                label: 'Bathrooms',
+                                child: _SelectBox(
+                                  hint: '4',
+                                  value: _bathrooms,
+                                  items: _roomCounts,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _bathrooms = value;
+                                    });
+                                  },
+                                  border: border,
+                                  fill: inputBg,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            _LabeledRow(
-                              label: 'Bathrooms',
-                              child: _SelectBox(
-                                hint: '4',
-                                value: _bathrooms,
-                                items: _roomCounts,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _bathrooms = value;
-                                  });
-                                },
-                                border: border,
-                                fill: inputBg,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final bool compact = constraints.maxWidth < 360;
-                                final Widget priceRange = Row(
-                                  children: [
-                                    Expanded(
-                                      child: _TextFieldBox(
-                                        controller: _priceFromController,
-                                        hint: 'From',
-                                        focusNode: _priceFromFocusNode,
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.digitsOnly,
-                                        ],
-                                        border: border,
-                                        fill: inputBg,
-                                        onEditingComplete:
-                                            _applySuggestedPriceToFromCurrentFrom,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    const Text(
-                                      'TO',
-                                      style: TextStyle(
-                                        color: Color(0xFF1F2430),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: _TextFieldBox(
-                                        controller: _priceToController,
-                                        hint: 'To',
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.digitsOnly,
-                                        ],
-                                        border: border,
-                                        fill: inputBg,
-                                        onChanged: _onPriceToChanged,
-                                      ),
-                                    ),
-                                  ],
-                                );
-
-                                if (compact) {
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 14),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final bool compact =
+                                      constraints.maxWidth < 360;
+                                  final Widget priceRange = Row(
                                     children: [
+                                      Expanded(
+                                        child: _TextFieldBox(
+                                          controller: _priceFromController,
+                                          hint: 'From',
+                                          focusNode: _priceFromFocusNode,
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          border: border,
+                                          fill: inputBg,
+                                          onEditingComplete:
+                                              _applySuggestedPriceToFromCurrentFrom,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
                                       const Text(
-                                        'Price',
+                                        'TO',
                                         style: TextStyle(
                                           color: Color(0xFF1F2430),
-                                          fontSize: 16,
+                                          fontSize: 15,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      priceRange,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: _TextFieldBox(
+                                          controller: _priceToController,
+                                          hint: 'To',
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          border: border,
+                                          fill: inputBg,
+                                          onChanged: _onPriceToChanged,
+                                        ),
+                                      ),
                                     ],
                                   );
-                                }
 
-                                return Row(
-                                  children: [
-                                    const Expanded(
-                                      flex: 4,
-                                      child: Text(
-                                        'Price',
-                                        style: TextStyle(
-                                          color: Color(0xFF1F2430),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
+                                  if (compact) {
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Price',
+                                          style: TextStyle(
+                                            color: Color(0xFF1F2430),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        priceRange,
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      const Expanded(
+                                        flex: 4,
+                                        child: Text(
+                                          'Price',
+                                          style: TextStyle(
+                                            color: Color(0xFF1F2430),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
+                                      Expanded(flex: 6, child: priceRange),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: ElevatedButton(
+                                  onPressed: _goToSeekerHome,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    Expanded(flex: 6, child: priceRange),
-                                  ],
-                                );
-                              },
+                                  ),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    final minPrice = _parsePrice(
+                                      _priceFromController.text,
+                                    );
+                                    final rawMaxPrice = _parsePrice(
+                                      _priceToController.text,
+                                    );
+                                    final maxPrice =
+                                        minPrice != null &&
+                                                rawMaxPrice != null &&
+                                                rawMaxPrice < minPrice
+                                            ? _buildSuggestedPriceTo(
+                                              minPrice.toInt(),
+                                            ).toDouble()
+                                            : rawMaxPrice;
+                                    final criteria = SearchCriteria(
+                                      transactionType:
+                                          _isBuySelected ? 'buy' : 'rent',
+                                      rentType:
+                                          _isBuySelected
+                                              ? null
+                                              : _rentType?.toLowerCase(),
+                                      propertyType: _propertyType,
+                                      propertyState: _propertyState,
+                                      propertyCity: _propertyCity,
+                                      bathrooms: _parseRoomFilter(_bathrooms),
+                                      bathroomsAtLeast: _isAtLeastFilter(
+                                        _bathrooms,
+                                      ),
+                                      bedrooms: _parseRoomFilter(_bedrooms),
+                                      bedroomsAtLeast: _isAtLeastFilter(
+                                        _bedrooms,
+                                      ),
+                                      minPrice: minPrice,
+                                      maxPrice: maxPrice,
+                                    );
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => SearchResultPage(
+                                              criteria: criteria,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Search',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: _goToSeekerHome,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: SizedBox(
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  final minPrice = _parsePrice(
-                                    _priceFromController.text,
-                                  );
-                                  final rawMaxPrice = _parsePrice(
-                                    _priceToController.text,
-                                  );
-                                  final maxPrice = minPrice != null &&
-                                          rawMaxPrice != null &&
-                                          rawMaxPrice < minPrice
-                                      ? _buildSuggestedPriceTo(
-                                          minPrice.toInt(),
-                                        ).toDouble()
-                                      : rawMaxPrice;
-
-                                  final criteria = SearchCriteria(
-                                    transactionType: _isBuySelected ? 'buy' : 'rent',
-                                    rentType: _isBuySelected
-                                        ? null
-                                        : _rentType?.toLowerCase(),
-                                    propertyType: _propertyType,
-                                    propertyState: _propertyState,
-                                    propertyCity: _propertyCity,
-                                    bathrooms: _parseRoomFilter(_bathrooms),
-                                    bathroomsAtLeast: _isAtLeastFilter(_bathrooms),
-                                    bedrooms: _parseRoomFilter(_bedrooms),
-                                    bedroomsAtLeast: _isAtLeastFilter(_bedrooms),
-                                    minPrice: minPrice,
-                                    maxPrice: maxPrice,
-                                  );
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => SearchResultPage(criteria: criteria),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Search',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                       ],
                     ),
                   ),
@@ -691,12 +712,12 @@ class _TextFieldBox extends StatelessWidget {
         onEditingComplete: onEditingComplete,
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFFD1D4D9),
-            fontSize: 14,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 12,
           ),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFFD1D4D9), fontSize: 14),
         ),
       ),
     );

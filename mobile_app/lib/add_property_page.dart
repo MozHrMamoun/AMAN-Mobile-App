@@ -44,6 +44,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final List<String> _numbers = ['1', '2', '3', '4', '5+'];
 
   bool get _isLandSelected => _propertyType == 'Land';
+  bool get _hasDraftContent =>
+      _propertyType != null ||
+      _rentType != null ||
+      _propertyState != null ||
+      _propertyCity != null ||
+      _bathrooms != null ||
+      _bedrooms != null ||
+      _propertyImageFiles.isNotEmpty ||
+      _certificateFile != null ||
+      _priceController.text.trim().isNotEmpty ||
+      _areaController.text.trim().isNotEmpty ||
+      _locationUrlController.text.trim().isNotEmpty ||
+      _descriptionController.text.trim().isNotEmpty;
 
   List<String> get _availableCities =>
       _propertyState == null
@@ -136,6 +149,45 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       context,
       MaterialPageRoute(builder: (_) => const OwnerHomePage()),
     );
+  }
+
+  Future<bool> _confirmLeave() async {
+    if (!_hasDraftContent || _isSaving) return true;
+
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Leave this page?'),
+          content: const Text(
+            'Your property draft will be kept and restored when you come back.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Stay'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2A4A),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              child: const Text('Leave'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldLeave ?? false;
+  }
+
+  Future<void> _handleExit() async {
+    final shouldLeave = await _confirmLeave();
+    if (!mounted || !shouldLeave) return;
+    _goToOwnerHome();
   }
 
   Future<void> _pickPropertyImage() async {
@@ -296,487 +348,500 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     const border = AppColors.border;
     const hint = AppColors.hint;
 
-    return Scaffold(
-      backgroundColor: primary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Text(
-                    'Add Property',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 35 / 2,
-                      fontWeight: FontWeight.w700,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _handleExit();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: primary,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text(
+                      'Add Property',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 35 / 2,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: _goToOwnerHome,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      color: Colors.white,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: _handleExit,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: page,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
+                  ],
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                  child: Column(
-                    children: [
-                      if (_formMessage != null) ...[
-                        _InlineFeedbackCard(
-                          message: _formMessage!,
-                          isError: _isFormMessageError,
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
-                        decoration: BoxDecoration(
-                          color: card,
-                          border: Border.all(color: border),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              offset: Offset(0, 3),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _DealTypeTab(
-                                    label: 'Buy',
-                                    selected: _isBuySelected,
-                                    onTap: () {
-                                      setState(() {
-                                        _isBuySelected = true;
-                                        _rentType = null;
-                                      });
-                                      _saveDraft();
-                                    },
+              ),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: page,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                    child: Column(
+                      children: [
+                        if (_formMessage != null) ...[
+                          _InlineFeedbackCard(
+                            message: _formMessage!,
+                            isError: _isFormMessageError,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+                          decoration: BoxDecoration(
+                            color: card,
+                            border: Border.all(color: border),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                offset: Offset(0, 3),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _DealTypeTab(
+                                      label: 'Buy',
+                                      selected: _isBuySelected,
+                                      onTap: () {
+                                        setState(() {
+                                          _isBuySelected = true;
+                                          _rentType = null;
+                                        });
+                                        _saveDraft();
+                                      },
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _DealTypeTab(
-                                    label: 'Rent',
-                                    selected: !_isBuySelected,
-                                    onTap: () {
-                                      setState(() => _isBuySelected = false);
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _DealTypeTab(
+                                      label: 'Rent',
+                                      selected: !_isBuySelected,
+                                      onTap: () {
+                                        setState(() => _isBuySelected = false);
+                                        _saveDraft();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (!_isBuySelected) ...[
+                                const SizedBox(height: 14),
+                                _FieldRow(
+                                  label: 'Type of Rent',
+                                  child: _SelectField(
+                                    value: _rentType,
+                                    hint: 'Place Holder...',
+                                    items: _rentTypes,
+                                    border: border,
+                                    hintColor: hint,
+                                    onChanged: (v) {
+                                      setState(() => _rentType = v);
                                       _saveDraft();
                                     },
                                   ),
                                 ),
                               ],
-                            ),
-                            if (!_isBuySelected) ...[
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 18),
                               _FieldRow(
-                                label: 'Type of Rent',
+                                label: 'Property Type',
                                 child: _SelectField(
-                                  value: _rentType,
+                                  value: _propertyType,
                                   hint: 'Place Holder...',
-                                  items: _rentTypes,
+                                  items: _propertyTypes,
                                   border: border,
                                   hintColor: hint,
                                   onChanged: (v) {
-                                    setState(() => _rentType = v);
+                                    setState(() {
+                                      _propertyType = v;
+                                      if (_isLandSelected) {
+                                        _bedrooms = null;
+                                        _bathrooms = null;
+                                      }
+                                    });
                                     _saveDraft();
                                   },
                                 ),
                               ),
-                            ],
-                            const SizedBox(height: 18),
-                            _FieldRow(
-                              label: 'Property Type',
-                              child: _SelectField(
-                                value: _propertyType,
-                                hint: 'Place Holder...',
-                                items: _propertyTypes,
-                                border: border,
-                                hintColor: hint,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _propertyType = v;
-                                    if (_isLandSelected) {
-                                      _bedrooms = null;
-                                      _bathrooms = null;
-                                    }
-                                  });
-                                  _saveDraft();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Property State',
-                              child: _SelectField(
-                                value: _propertyState,
-                                hint: 'Place Holder...',
-                                items: CityData.states,
-                                border: border,
-                                hintColor: hint,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _propertyState = v;
-                                    if (!_availableCities.contains(
-                                      _propertyCity,
-                                    )) {
-                                      _propertyCity = null;
-                                    }
-                                  });
-                                  _saveDraft();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Property City',
-                              child: _SelectField(
-                                value: _propertyCity,
-                                hint:
-                                    _propertyState == null
-                                        ? 'Select state first'
-                                        : 'Place Holder...',
-                                items: _availableCities,
-                                border: border,
-                                hintColor: hint,
-                                onChanged: (v) {
-                                  setState(() => _propertyCity = v);
-                                  _saveDraft();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Bedrooms',
-                              child: _SelectField(
-                                value: _isLandSelected ? null : _bedrooms,
-                                hint:
-                                    _isLandSelected ? 'Not used for land' : '4',
-                                items: _numbers,
-                                border: border,
-                                hintColor: hint,
-                                enabled: !_isLandSelected,
-                                onChanged: (v) {
-                                  setState(() => _bedrooms = v);
-                                  _saveDraft();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Bathrooms',
-                              child: _SelectField(
-                                value: _isLandSelected ? null : _bathrooms,
-                                hint:
-                                    _isLandSelected ? 'Not used for land' : '4',
-                                items: _numbers,
-                                border: border,
-                                hintColor: hint,
-                                enabled: !_isLandSelected,
-                                onChanged: (v) {
-                                  setState(() => _bathrooms = v);
-                                  _saveDraft();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Price',
-                              child: _TextFieldBox(
-                                controller: _priceController,
-                                hint: 'Type price',
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                border: border,
-                                suffixText: 'SDG',
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Area (sqm)',
-                              child: _TextFieldBox(
-                                controller: _areaController,
-                                hint: 'Type area',
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,2}$'),
-                                  ),
-                                ],
-                                border: border,
-                                suffixText: 'sqm',
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Location URL',
-                              child: _TextFieldBox(
-                                controller: _locationUrlController,
-                                hint: 'Paste location URL',
-                                keyboardType: TextInputType.url,
-                                border: border,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Property Images',
-                              child: _AttachmentField(
-                                fileName:
-                                    _propertyImageFiles.isEmpty
-                                        ? null
-                                        : '${_propertyImageFiles.length} images selected',
-                                buttonLabel: 'Attach Images',
-                                onTap: _pickPropertyImage,
-                                border: border,
-                              ),
-                            ),
-                            if (_propertyImageFiles.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                height: 82,
-                                child: ReorderableListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  onReorder: _reorderPropertyImages,
-                                  proxyDecorator:
-                                      (child, _, __) => Material(
-                                        color: Colors.transparent,
-                                        child: child,
-                                      ),
-                                  itemCount: _propertyImageFiles.length,
-                                  itemBuilder: (context, index) {
-                                    final file = _propertyImageFiles[index];
-                                    return ReorderableDragStartListener(
-                                      key: ValueKey('${file.path}-$index'),
-                                      index: index,
-                                      child: Container(
-                                        margin: EdgeInsets.only(
-                                          right:
-                                              index ==
-                                                      _propertyImageFiles
-                                                              .length -
-                                                          1
-                                                  ? 0
-                                                  : 10,
-                                        ),
-                                        child: Stack(
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: Image.file(
-                                                File(file.path),
-                                                width: 82,
-                                                height: 82,
-                                                fit: BoxFit.cover,
-                                              ),
-                                            ),
-                                            if (index == 0)
-                                              Positioned(
-                                                left: 6,
-                                                top: 6,
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFF1C2A4A,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ),
-                                                  ),
-                                                  child: const Text(
-                                                    'Cover',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            Positioned(
-                                              right: 4,
-                                              top: 4,
-                                              child: InkWell(
-                                                onTap:
-                                                    () => _removePropertyImage(
-                                                      index,
-                                                    ),
-                                                child: Container(
-                                                  width: 22,
-                                                  height: 22,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black54,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          11,
-                                                        ),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.close_rounded,
-                                                    color: Colors.white,
-                                                    size: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Property State',
+                                child: _SelectField(
+                                  value: _propertyState,
+                                  hint: 'Place Holder...',
+                                  items: CityData.states,
+                                  border: border,
+                                  hintColor: hint,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _propertyState = v;
+                                      if (!_availableCities.contains(
+                                        _propertyCity,
+                                      )) {
+                                        _propertyCity = null;
+                                      }
+                                    });
+                                    _saveDraft();
                                   },
                                 ),
                               ),
-                            ],
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Certificate',
-                              child: _AttachmentField(
-                                fileName: _certificateFile?.name,
-                                buttonLabel: 'Attach Image',
-                                onTap: _pickCertificateImage,
-                                border: border,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            _FieldRow(
-                              label: 'Description',
-                              alignTop: true,
-                              child: Container(
-                                height: 66,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8F8F9),
-                                  border: Border.all(color: border),
-                                  borderRadius: BorderRadius.circular(6),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Property City',
+                                child: _SelectField(
+                                  value: _propertyCity,
+                                  hint:
+                                      _propertyState == null
+                                          ? 'Select state first'
+                                          : 'Place Holder...',
+                                  items: _availableCities,
+                                  border: border,
+                                  hintColor: hint,
+                                  onChanged: (v) {
+                                    setState(() => _propertyCity = v);
+                                    _saveDraft();
+                                  },
                                 ),
-                                child: TextField(
-                                  controller: _descriptionController,
-                                  maxLines: null,
-                                  expands: true,
-                                  decoration: InputDecoration(
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Bedrooms',
+                                child: _SelectField(
+                                  value: _isLandSelected ? null : _bedrooms,
+                                  hint:
+                                      _isLandSelected
+                                          ? 'Not used for land'
+                                          : '4',
+                                  items: _numbers,
+                                  border: border,
+                                  hintColor: hint,
+                                  enabled: !_isLandSelected,
+                                  onChanged: (v) {
+                                    setState(() => _bedrooms = v);
+                                    _saveDraft();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Bathrooms',
+                                child: _SelectField(
+                                  value: _isLandSelected ? null : _bathrooms,
+                                  hint:
+                                      _isLandSelected
+                                          ? 'Not used for land'
+                                          : '4',
+                                  items: _numbers,
+                                  border: border,
+                                  hintColor: hint,
+                                  enabled: !_isLandSelected,
+                                  onChanged: (v) {
+                                    setState(() => _bathrooms = v);
+                                    _saveDraft();
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Price',
+                                child: _TextFieldBox(
+                                  controller: _priceController,
+                                  hint: 'Type price',
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  border: border,
+                                  suffixText: 'SDG',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Area (sqm)',
+                                child: _TextFieldBox(
+                                  controller: _areaController,
+                                  hint: 'Type area',
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d*\.?\d{0,2}$'),
                                     ),
-                                    border: InputBorder.none,
-                                    hintText: 'Description...',
-                                    hintStyle: TextStyle(
-                                      color: Color(0xFFD1D4D9),
-                                      fontSize: 14,
+                                  ],
+                                  border: border,
+                                  suffixText: 'sqm',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Location URL',
+                                child: _TextFieldBox(
+                                  controller: _locationUrlController,
+                                  hint: 'Paste location URL',
+                                  keyboardType: TextInputType.url,
+                                  border: border,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Property Images',
+                                child: _AttachmentField(
+                                  fileName:
+                                      _propertyImageFiles.isEmpty
+                                          ? null
+                                          : '${_propertyImageFiles.length} images selected',
+                                  buttonLabel: 'Attach Images',
+                                  onTap: _pickPropertyImage,
+                                  border: border,
+                                ),
+                              ),
+                              if (_propertyImageFiles.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 82,
+                                  child: ReorderableListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    onReorder: _reorderPropertyImages,
+                                    proxyDecorator:
+                                        (child, _, __) => Material(
+                                          color: Colors.transparent,
+                                          child: child,
+                                        ),
+                                    itemCount: _propertyImageFiles.length,
+                                    itemBuilder: (context, index) {
+                                      final file = _propertyImageFiles[index];
+                                      return ReorderableDragStartListener(
+                                        key: ValueKey('${file.path}-$index'),
+                                        index: index,
+                                        child: Container(
+                                          margin: EdgeInsets.only(
+                                            right:
+                                                index ==
+                                                        _propertyImageFiles
+                                                                .length -
+                                                            1
+                                                    ? 0
+                                                    : 10,
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: Image.file(
+                                                  File(file.path),
+                                                  width: 82,
+                                                  height: 82,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                              if (index == 0)
+                                                Positioned(
+                                                  left: 6,
+                                                  top: 6,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFF1C2A4A,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                    ),
+                                                    child: const Text(
+                                                      'Cover',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              Positioned(
+                                                right: 4,
+                                                top: 4,
+                                                child: InkWell(
+                                                  onTap:
+                                                      () =>
+                                                          _removePropertyImage(
+                                                            index,
+                                                          ),
+                                                  child: Container(
+                                                    width: 22,
+                                                    height: 22,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black54,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            11,
+                                                          ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.close_rounded,
+                                                      color: Colors.white,
+                                                      size: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Certificate',
+                                child: _AttachmentField(
+                                  fileName: _certificateFile?.name,
+                                  buttonLabel: 'Attach Image',
+                                  onTap: _pickCertificateImage,
+                                  border: border,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _FieldRow(
+                                label: 'Description',
+                                alignTop: true,
+                                child: Container(
+                                  height: 66,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8F8F9),
+                                    border: Border.all(color: border),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: TextField(
+                                    controller: _descriptionController,
+                                    maxLines: null,
+                                    expands: true,
+                                    decoration: InputDecoration(
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      border: InputBorder.none,
+                                      hintText: 'Description...',
+                                      hintStyle: TextStyle(
+                                        color: Color(0xFFD1D4D9),
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: ElevatedButton(
+                                  onPressed: _handleExit,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: ElevatedButton(
+                                  onPressed: _isSaving ? null : _addProperty,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child:
+                                      _isSaving
+                                          ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Text(
+                                            'Add',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                            ),
+                                          ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: _goToOwnerHome,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: SizedBox(
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: _isSaving ? null : _addProperty,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child:
-                                    _isSaving
-                                        ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          ),
-                                        )
-                                        : const Text(
-                                          'Add',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1081,22 +1146,17 @@ class _AttachmentField extends StatelessWidget {
 }
 
 class _InlineFeedbackCard extends StatelessWidget {
-  const _InlineFeedbackCard({
-    required this.message,
-    required this.isError,
-  });
+  const _InlineFeedbackCard({required this.message, required this.isError});
 
   final String message;
   final bool isError;
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final color = isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
     final background =
         isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
-    final border =
-        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+    final border = isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
 
     return Container(
       width: double.infinity,
