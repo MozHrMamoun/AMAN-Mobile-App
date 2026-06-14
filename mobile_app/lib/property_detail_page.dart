@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'chat_detail_page.dart';
 import 'core/app_session.dart';
+import 'core/guest_login_prompt.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'features/properties/state/property_detail_controller.dart';
 import 'update_property_page.dart';
@@ -64,23 +65,33 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     if (trimmed.isEmpty || trimmed == '-') return;
 
     final directUri = Uri.tryParse(trimmed);
-    Uri target;
+    final googleSearchUri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}',
+    );
+
+    final launchCandidates = <Uri>[];
+
     if (directUri != null &&
         (directUri.scheme == 'http' || directUri.scheme == 'https')) {
-      target = directUri;
+      launchCandidates.add(directUri);
+      if (directUri.toString() != googleSearchUri.toString()) {
+        launchCandidates.add(googleSearchUri);
+      }
     } else {
-      target = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmed)}',
-      );
+      launchCandidates.add(googleSearchUri);
     }
 
-    final opened = await launchUrl(
-      target,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened && mounted) {
+    for (final candidate in launchCandidates) {
+      final opened = await launchUrl(
+        candidate,
+        mode: LaunchMode.externalApplication,
+      );
+      if (opened) return;
+    }
+
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open location link.')),
+        const SnackBar(content: Text('Could not open Google Maps link.')),
       );
     }
   }
@@ -88,9 +99,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
   Future<void> _openOwnerChat() async {
     if (_item == null) return;
     if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      await showGuestLoginPrompt(context);
       return;
     }
 

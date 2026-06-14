@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'add_property_page.dart';
 import 'chat_detail_page.dart';
 import 'core/app_session.dart';
+import 'core/guest_login_prompt.dart';
 import 'deal_detail_page.dart';
 import 'edit_information_page.dart';
 import 'features/owner_home/state/owner_home_controller.dart';
@@ -36,8 +37,10 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
+        showGuestLoginPrompt(
+          context,
+          replaceCurrentPage: true,
+          popBlockedPageOnCancel: true,
         );
       });
       return;
@@ -97,6 +100,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
         break;
       case OwnerActivityKind.dealPending:
       case OwnerActivityKind.dealCompleted:
+      case OwnerActivityKind.dealRejected:
         final seekerUserId = activity.seekerUserId;
         final ownerUserId = activity.ownerUserId;
         final propertyId = activity.propertyId;
@@ -158,9 +162,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
 
   void _onNavTap(int index) {
     if (AppSession.isGuestMode && index != 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      showGuestLoginPrompt(context);
       return;
     }
 
@@ -224,13 +226,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                       _TopIconsRow(
                         onProfileTap: () {
                           if (AppSession.isGuestMode) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please login to use this feature.',
-                                ),
-                              ),
-                            );
+                            showGuestLoginPrompt(context);
                             return;
                           }
                           Navigator.push(
@@ -411,6 +407,8 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                                   Icons.handshake_rounded,
                                 OwnerActivityKind.dealCompleted =>
                                   Icons.verified_rounded,
+                                OwnerActivityKind.dealRejected =>
+                                  Icons.cancel_rounded,
                                 OwnerActivityKind.listingInactive =>
                                   Icons.pause_circle_filled_rounded,
                               },
@@ -424,6 +422,9 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                                 OwnerActivityKind.dealCompleted => const Color(
                                   0xFF2F7D32,
                                 ),
+                                OwnerActivityKind.dealRejected => const Color(
+                                  0xFFC65D5D,
+                                ),
                                 OwnerActivityKind.listingInactive =>
                                   const Color(0xFF7A6F8F),
                               },
@@ -431,6 +432,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
                                 OwnerActivityKind.chat => 'Open chat',
                                 OwnerActivityKind.dealPending => 'Review deal',
                                 OwnerActivityKind.dealCompleted => 'View deal',
+                                OwnerActivityKind.dealRejected => 'View deal',
                                 OwnerActivityKind.listingInactive =>
                                   'Open listing',
                               },
@@ -663,6 +665,8 @@ class _OwnerActivityListPageState extends State<_OwnerActivityListPage> {
                                   Icons.handshake_rounded,
                                 OwnerActivityKind.dealCompleted =>
                                   Icons.verified_rounded,
+                                OwnerActivityKind.dealRejected =>
+                                  Icons.cancel_rounded,
                                 OwnerActivityKind.listingInactive =>
                                   Icons.pause_circle_filled_rounded,
                               },
@@ -676,6 +680,9 @@ class _OwnerActivityListPageState extends State<_OwnerActivityListPage> {
                                 OwnerActivityKind.dealCompleted => const Color(
                                   0xFF2F7D32,
                                 ),
+                                OwnerActivityKind.dealRejected => const Color(
+                                  0xFFC65D5D,
+                                ),
                                 OwnerActivityKind.listingInactive =>
                                   const Color(0xFF7A6F8F),
                               },
@@ -683,6 +690,7 @@ class _OwnerActivityListPageState extends State<_OwnerActivityListPage> {
                                 OwnerActivityKind.chat => 'Open chat',
                                 OwnerActivityKind.dealPending => 'Review deal',
                                 OwnerActivityKind.dealCompleted => 'View deal',
+                                OwnerActivityKind.dealRejected => 'View deal',
                                 OwnerActivityKind.listingInactive =>
                                   'Open listing',
                               },

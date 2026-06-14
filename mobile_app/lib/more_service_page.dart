@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
+import 'core/guest_login_prompt.dart';
 import 'fair_price_page.dart';
 import 'my_deals_page.dart';
 import 'seeker_home_page.dart';
@@ -9,14 +10,9 @@ import 'seeker_home_page.dart';
 class MoreServicePage extends StatelessWidget {
   const MoreServicePage({super.key});
 
-  void _openRestrictedPage(
-    BuildContext context, {
-    required Widget page,
-  }) {
+  void _openRestrictedPage(BuildContext context, {required Widget page}) {
     if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      showGuestLoginPrompt(context);
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -101,21 +97,22 @@ class MoreServicePage extends StatelessWidget {
                         title: 'Average Price',
                         description:
                             'Check the monthly average property price based on selected filters.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const FairPricePage(),
-                        ),
+                        onTap:
+                            () => _openRestrictedPage(
+                              context,
+                              page: const FairPricePage(),
+                            ),
                       ),
                       const SizedBox(height: 14),
                       _ServiceCard(
                         icon: Icons.handshake_outlined,
                         title: 'Deals',
-                        description:
-                            'Track active and completed deals.',
-                        onTap: () => _openRestrictedPage(
-                          context,
-                          page: const MyDealsPage(initialRole: 'seeker'),
-                        ),
+                        description: 'Track active and completed deals.',
+                        onTap:
+                            () => _openRestrictedPage(
+                              context,
+                              page: const MyDealsPage(initialRole: 'seeker'),
+                            ),
                       ),
                     ],
                   ),

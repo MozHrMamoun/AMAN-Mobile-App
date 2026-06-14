@@ -439,17 +439,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       );
     }
 
-    if (_isDealCompleted) {
-      return _buildDealLink();
-    }
-
-    if (_isDealPending) {
-      return _buildDealLink(
-        label: 'Pending confirmation',
-        labelColor: const Color(0xFFD68600),
-      );
-    }
-
     return _buildDealLink();
   }
 
@@ -466,7 +455,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     return const Color(0xFF355C7D);
   }
 
-  Widget _buildDealLink({String? label, Color? labelColor}) {
+  Widget _buildDealLink() {
     final seekerId = _seekerUserId;
     final ownerId = _ownerUserId;
     final propertyId = _propertyId;
@@ -474,21 +463,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       return const SizedBox.shrink();
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (label != null) ...[
-          Text(
-            label,
-            style: TextStyle(
-              color: labelColor ?? const Color(0xFF8E949F),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 10),
-        ],
-        TextButton(
+        OutlinedButton(
           onPressed: () async {
             await Navigator.push(
               context,
@@ -509,10 +489,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               await _loadPeerRating(peerId);
             }
           },
-          style: TextButton.styleFrom(
+          style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF1C2A4A),
+            side: const BorderSide(color: Color(0xFFD7DBE2)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: const TextStyle(
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -733,7 +718,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (_) => PropertyDetailPage(propertyId: property.propertyId),
+                        (_) =>
+                            PropertyDetailPage(propertyId: property.propertyId),
                   ),
                 );
               },
@@ -829,14 +815,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (dealStatusText != null) ...[
-                  _ContextPill(
-                    label: dealStatusText,
-                    color: dealStatusColor,
-                  ),
-                  const SizedBox(width: 8),
+                  _ContextPill(label: dealStatusText, color: dealStatusColor),
                 ],
                 if (_propertyId != null)
                   _ContextActionButton(
@@ -853,7 +838,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       );
                     },
                   ),
-                const Spacer(),
                 _buildDealActions(),
               ],
             ),
@@ -915,9 +899,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                  child: Column(
-                    children: [
-                      _buildPropertySummaryCard(),
+                child: Column(
+                  children: [
+                    _buildPropertySummaryCard(),
                     Expanded(
                       child:
                           _isLoading
@@ -1155,10 +1139,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 }
 
 class _ContextPill extends StatelessWidget {
-  const _ContextPill({
-    required this.label,
-    required this.color,
-  });
+  const _ContextPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -1185,22 +1166,17 @@ class _ContextPill extends StatelessWidget {
 }
 
 class _InlineFeedbackCard extends StatelessWidget {
-  const _InlineFeedbackCard({
-    required this.message,
-    required this.isError,
-  });
+  const _InlineFeedbackCard({required this.message, required this.isError});
 
   final String message;
   final bool isError;
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final color = isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
     final background =
         isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
-    final border =
-        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+    final border = isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
 
     return Container(
       width: double.infinity,
@@ -1237,10 +1213,7 @@ class _InlineFeedbackCard extends StatelessWidget {
 }
 
 class _ContextActionButton extends StatelessWidget {
-  const _ContextActionButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _ContextActionButton({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;

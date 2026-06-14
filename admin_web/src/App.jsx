@@ -392,9 +392,18 @@ export default function App() {
 
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
-      setSession(data.session ?? null);
+
+      if (data.session) {
+        await supabase.auth.signOut();
+        if (!active) return;
+        setSession(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      setSession(null);
       setAuthLoading(false);
     });
 

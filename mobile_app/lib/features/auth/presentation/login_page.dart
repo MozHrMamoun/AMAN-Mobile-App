@@ -369,10 +369,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_message != null) ...[
-            _InlineFeedbackCard(
-              message: _message!,
-              isError: _isError,
-            ),
+            _InlineFeedbackCard(message: _message!, isError: _isError),
             const SizedBox(height: 14),
           ],
           const Text(
@@ -419,22 +416,17 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 }
 
 class _InlineFeedbackCard extends StatelessWidget {
-  const _InlineFeedbackCard({
-    required this.message,
-    required this.isError,
-  });
+  const _InlineFeedbackCard({required this.message, required this.isError});
 
   final String message;
   final bool isError;
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final color = isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
     final background =
         isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
-    final border =
-        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+    final border = isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
 
     return Container(
       width: double.infinity,

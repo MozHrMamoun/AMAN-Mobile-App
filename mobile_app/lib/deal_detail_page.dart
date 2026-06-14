@@ -33,6 +33,7 @@ class _DealDetailPageState extends State<DealDetailPage> {
   bool _isActionLoading = false;
   bool _isDealPending = false;
   bool _isDealCompleted = false;
+  bool _isDealRejected = false;
   bool _hasRated = false;
   String _currentRole = 'seeker';
   int? _dealId;
@@ -67,17 +68,17 @@ class _DealDetailPageState extends State<DealDetailPage> {
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(status.errorMessage ?? 'Failed to load deal.'),
-        ),
+        SnackBar(content: Text(status.errorMessage ?? 'Failed to load deal.')),
       );
       return;
     }
 
     setState(() {
       _currentRole = status.currentRole ?? 'seeker';
-      _isDealPending = status.isPending && !status.isCompleted;
+      _isDealPending =
+          status.isPending && !status.isCompleted && !status.isRejected;
       _isDealCompleted = status.isCompleted;
+      _isDealRejected = status.isRejected;
       _dealId = status.dealId;
       _isLoading = false;
       _hasRated = false;
@@ -187,8 +188,69 @@ class _DealDetailPageState extends State<DealDetailPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Deal confirmed. Property is now inactive.')),
+      const SnackBar(
+        content: Text('Deal confirmed. Property is now inactive.'),
+      ),
     );
+    await _load();
+  }
+
+  Future<void> _rejectDeal() async {
+    final dealId = _dealId;
+    if (dealId == null) return;
+
+    final shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reject deal?'),
+          content: const Text(
+            'This will mark the deal as rejected for both you and the seeker.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC65D5D),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Reject'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldReject != true) return;
+
+    setState(() {
+      _isActionLoading = true;
+    });
+
+    final result = await _dealController.rejectDeal(dealId: dealId);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isActionLoading = false;
+    });
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Failed to reject deal.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Deal rejected.')));
     await _load();
   }
 
@@ -265,9 +327,9 @@ class _DealDetailPageState extends State<DealDetailPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Thank you for your rating.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Thank you for your rating.')));
     await _load();
   }
 
@@ -324,7 +386,8 @@ class _DealDetailPageState extends State<DealDetailPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => PropertyDetailPage(propertyId: property.propertyId),
+              builder:
+                  (_) => PropertyDetailPage(propertyId: property.propertyId),
             ),
           );
         },
@@ -341,27 +404,30 @@ class _DealDetailPageState extends State<DealDetailPage> {
                 child: SizedBox(
                   width: 72,
                   height: 72,
-                  child: property.imageUrl == null || property.imageUrl!.trim().isEmpty
-                      ? Container(
-                          color: const Color(0xFFF2F2F3),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.home_work_outlined,
-                            color: Color(0xFF8E949F),
-                          ),
-                        )
-                      : Image.network(
-                          property.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                  child:
+                      property.imageUrl == null ||
+                              property.imageUrl!.trim().isEmpty
+                          ? Container(
                             color: const Color(0xFFF2F2F3),
                             alignment: Alignment.center,
                             child: const Icon(
-                              Icons.broken_image_outlined,
+                              Icons.home_work_outlined,
                               color: Color(0xFF8E949F),
                             ),
+                          )
+                          : Image.network(
+                            property.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  color: const Color(0xFFF2F2F3),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Color(0xFF8E949F),
+                                  ),
+                                ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -433,19 +499,29 @@ class _DealDetailPageState extends State<DealDetailPage> {
 
     if (_isDealCompleted) {
       title = 'Completed';
-      description = 'The owner confirmed this deal. The property is inactive now.';
+      description =
+          'The owner confirmed this deal. The property is inactive now.';
       tone = const Color(0xFF2F7D32);
+    } else if (_isDealRejected) {
+      title = 'Rejected';
+      description =
+          _currentRole == 'owner'
+              ? 'You rejected this deal request.'
+              : 'The owner rejected this deal request.';
+      tone = const Color(0xFFC65D5D);
     } else if (_isDealPending) {
       title = 'Pending Confirmation';
-      description = _currentRole == 'owner'
-          ? 'The seeker requested completion. Confirm it here when the deal is really done.'
-          : 'You requested completion. The owner still needs to confirm it.';
+      description =
+          _currentRole == 'owner'
+              ? 'The seeker requested completion. Confirm it here when the deal is really done.'
+              : 'You requested completion. The owner still needs to confirm it.';
       tone = const Color(0xFFD68600);
     } else {
       title = 'No Completion Request Yet';
-      description = _currentRole == 'seeker'
-          ? 'When the deal is finished, request completion here.'
-          : 'Wait for the seeker to request completion before confirming.';
+      description =
+          _currentRole == 'seeker'
+              ? 'When the deal is finished, request completion here.'
+              : 'Wait for the seeker to request completion before confirming.';
       tone = const Color(0xFF6E7583);
     }
 
@@ -508,19 +584,23 @@ class _DealDetailPageState extends State<DealDetailPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: _isActionLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            child:
+                _isActionLoading
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                    : const Text(
+                      'Rate User',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  )
-                : const Text(
-                    'Rate User',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
           ),
         );
       }
@@ -537,35 +617,82 @@ class _DealDetailPageState extends State<DealDetailPage> {
       );
     }
 
+    if (_isDealRejected) {
+      return Center(
+        child: Text(
+          _currentRole == 'owner'
+              ? 'You rejected this deal.'
+              : 'This deal was rejected by the owner.',
+          style: const TextStyle(
+            color: Color(0xFFC65D5D),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
     if (_isDealPending) {
       if (_currentRole == 'owner') {
-        return SizedBox(
-          width: double.infinity,
-          height: 46,
-          child: ElevatedButton(
-            onPressed: _isActionLoading ? null : _confirmDeal,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1C2A4A),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: _isActionLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        return Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 46,
+                child: OutlinedButton(
+                  onPressed: _isActionLoading ? null : _rejectDeal,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFC65D5D),
+                    side: const BorderSide(color: Color(0xFFE4B5B5)),
+                    backgroundColor: const Color(0xFFFFF5F5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  )
-                : const Text(
-                    'Confirm Completion',
+                  ),
+                  child: const Text(
+                    'Reject',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
-          ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: _isActionLoading ? null : _confirmDeal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1C2A4A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child:
+                      _isActionLoading
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Confirm',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                ),
+              ),
+            ),
+          ],
         );
       }
 
@@ -595,19 +722,20 @@ class _DealDetailPageState extends State<DealDetailPage> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: _isActionLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          child:
+              _isActionLoading
+                  ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                  : const Text(
+                    'Request Completion',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
-                )
-              : const Text(
-                  'Request Completion',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
         ),
       );
     }
@@ -690,7 +818,8 @@ class _DealDetailPageState extends State<DealDetailPage> {
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                     children: [
                       _buildPropertyCard(),
-                      if (widget.propertySummary != null) const SizedBox(height: 14),
+                      if (widget.propertySummary != null)
+                        const SizedBox(height: 14),
                       _buildStatusCard(),
                       const SizedBox(height: 16),
                       _buildActionArea(),

@@ -224,8 +224,8 @@ class _FairPricePageState extends State<FairPricePage> {
                                 value: _transactionType,
                                 hint: 'Place Holder...',
                                 items: _transactionTypes,
-                                onChanged: (v) =>
-                                    setState(() => _transactionType = v),
+                                onChanged:
+                                    (v) => setState(() => _transactionType = v),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -235,12 +235,13 @@ class _FairPricePageState extends State<FairPricePage> {
                                 value: _propertyType,
                                 hint: 'Place Holder...',
                                 items: _propertyTypes,
-                                onChanged: (v) => setState(() {
-                                  _propertyType = v;
-                                  if (_isLandSelected) {
-                                    _bedrooms = null;
-                                  }
-                                }),
+                                onChanged:
+                                    (v) => setState(() {
+                                      _propertyType = v;
+                                      if (_isLandSelected) {
+                                        _bedrooms = null;
+                                      }
+                                    }),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -257,7 +258,8 @@ class _FairPricePageState extends State<FairPricePage> {
                               label: 'Bedrooms',
                               child: _SelectBox(
                                 value: _isLandSelected ? null : _bedrooms,
-                                hint: _isLandSelected ? 'Not used for land' : '4',
+                                hint:
+                                    _isLandSelected ? 'Not used for land' : '4',
                                 items: _counts,
                                 enabled: !_isLandSelected,
                                 onChanged: (v) => setState(() => _bedrooms = v),
@@ -280,24 +282,25 @@ class _FairPricePageState extends State<FairPricePage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
+                          child:
+                              _isLoading
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : const Text(
+                                    'Show Average Price',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                )
-                              : const Text(
-                                  'Show Average Price',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -316,67 +319,68 @@ class _FairPricePageState extends State<FairPricePage> {
                             ),
                           ],
                         ),
-                        child: _errorMessage != null
-                            ? Text(
-                                _errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFB00020),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : _averagePrice != null
-                                ? Column(
-                                    children: [
-                                      const Text(
-                                        'Average Price',
-                                        style: TextStyle(
-                                          color: Color(0xFF1F2430),
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _averagePrice!.toStringAsFixed(2),
-                                        style: const TextStyle(
-                                          color: Color(0xFF1C2A4A),
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Samples: $_sampleCount',
-                                        style: const TextStyle(
-                                          color: Color(0xFF8E949F),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : _hasSearched
-                                    ? const Text(
-                                        'No average price data was found for this selection. Try a different month, city, or property type.',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Color(0xFF8E949F),
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.35,
-                                        ),
-                                      )
-                                : const Text(
-                                    'Select options and press Show Average Price.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Color(0xFF8E949F),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                        child:
+                            _errorMessage != null
+                                ? Text(
+                                  _errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB00020),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                   ),
+                                )
+                                : _averagePrice != null
+                                ? Column(
+                                  children: [
+                                    const Text(
+                                      'Average Price',
+                                      style: TextStyle(
+                                        color: Color(0xFF1F2430),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _averagePrice!.toStringAsFixed(2),
+                                      style: const TextStyle(
+                                        color: Color(0xFF1C2A4A),
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Based on $_sampleCount listings',
+                                      style: const TextStyle(
+                                        color: Color(0xFF8E949F),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                                : _hasSearched
+                                ? const Text(
+                                  'No average price data was found for this selection. Try a different month, city, or property type.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF8E949F),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.35,
+                                  ),
+                                )
+                                : const Text(
+                                  'Select options and press Show Average Price.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF8E949F),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                       ),
                     ],
                   ),
@@ -524,28 +528,26 @@ class _SelectBox extends StatelessWidget {
             hint,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: enabled
-                  ? const Color(0xFFD1D4D9)
-                  : const Color(0xFF9AA1AD),
+              color:
+                  enabled ? const Color(0xFFD1D4D9) : const Color(0xFF9AA1AD),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
           style: TextStyle(
-            color: enabled
-                ? const Color(0xFF1F2430)
-                : const Color(0xFF9AA1AD),
+            color: enabled ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
-          items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item, overflow: TextOverflow.ellipsis),
-                ),
-              )
-              .toList(),
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
           onChanged: enabled ? onChanged : null,
         ),
       ),

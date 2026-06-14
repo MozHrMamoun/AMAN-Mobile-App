@@ -47,7 +47,8 @@ class OwnerHomeRepository {
         .from('deals')
         .select('deal_id')
         .eq('owner_id', ownerId)
-        .isFilter('done_at', null);
+        .isFilter('done_at', null)
+        .isFilter('rejected_at', null);
     return (rows as List).length;
   }
 
@@ -58,7 +59,7 @@ class OwnerHomeRepository {
     var query = _client
         .from('deals')
         .select(
-          'deal_id, seeker_id, owner_id, property_id, done_at, created_at',
+          'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at, created_at',
         )
         .eq('owner_id', ownerId)
         .order('created_at', ascending: false);

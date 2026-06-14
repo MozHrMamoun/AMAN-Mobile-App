@@ -11,6 +11,7 @@ class DealStatusResult {
     this.dealId,
     this.isPending = false,
     this.isCompleted = false,
+    this.isRejected = false,
     this.currentRole,
     this.propertyId,
   });
@@ -21,6 +22,7 @@ class DealStatusResult {
   final int? dealId;
   final bool isPending;
   final bool isCompleted;
+  final bool isRejected;
   final String? currentRole;
   final int? propertyId;
 
@@ -53,11 +55,22 @@ class DealStatusResult {
     );
   }
 
-  factory DealStatusResult.none({required String role}) {
+  factory DealStatusResult.rejected({
+    required String role,
+    required int dealId,
+    required int? propertyId,
+  }) {
     return DealStatusResult._(
       success: true,
+      isRejected: true,
+      dealId: dealId,
       currentRole: role,
+      propertyId: propertyId,
     );
+  }
+
+  factory DealStatusResult.none({required String role}) {
+    return DealStatusResult._(success: true, currentRole: role);
   }
 
   factory DealStatusResult.error(String message) {
@@ -93,7 +106,7 @@ class DealActionResult {
 
 class DealController {
   DealController({DealRepository? repository})
-      : _repository = repository ?? DealRepository();
+    : _repository = repository ?? DealRepository();
 
   final DealRepository _repository;
   final PropertyRepository _propertyRepository = PropertyRepository();
@@ -121,9 +134,10 @@ class DealController {
       }
 
       final dealIdRaw = latest['deal_id'];
-      final dealId = dealIdRaw is int
-          ? dealIdRaw
-          : (dealIdRaw is num ? dealIdRaw.toInt() : null);
+      final dealId =
+          dealIdRaw is int
+              ? dealIdRaw
+              : (dealIdRaw is num ? dealIdRaw.toInt() : null);
       if (dealId == null) {
         return DealStatusResult.error('Invalid deal id.');
       }
@@ -131,6 +145,15 @@ class DealController {
       final doneAt = latest['done_at'];
       if (doneAt != null) {
         return DealStatusResult.completed(
+          role: role,
+          dealId: dealId,
+          propertyId: propertyId,
+        );
+      }
+
+      final rejectedAt = latest['rejected_at'];
+      if (rejectedAt != null) {
+        return DealStatusResult.rejected(
           role: role,
           dealId: dealId,
           propertyId: propertyId,
@@ -147,7 +170,9 @@ class DealController {
         e.message.isEmpty ? 'Failed to load deal status.' : e.message,
       );
     } catch (_) {
-      return DealStatusResult.error('Unexpected error while loading deal status.');
+      return DealStatusResult.error(
+        'Unexpected error while loading deal status.',
+      );
     }
   }
 
@@ -171,21 +196,32 @@ class DealController {
       }
 
       final dealIdRaw = latest['deal_id'];
-      final dealId = dealIdRaw is int
-          ? dealIdRaw
-          : (dealIdRaw is num ? dealIdRaw.toInt() : null);
+      final dealId =
+          dealIdRaw is int
+              ? dealIdRaw
+              : (dealIdRaw is num ? dealIdRaw.toInt() : null);
       if (dealId == null) {
         return DealStatusResult.error('Invalid deal id.');
       }
 
       final propertyIdRaw = latest['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
 
       final doneAt = latest['done_at'];
       if (doneAt != null) {
         return DealStatusResult.completed(
+          role: role,
+          dealId: dealId,
+          propertyId: propertyId,
+        );
+      }
+
+      final rejectedAt = latest['rejected_at'];
+      if (rejectedAt != null) {
+        return DealStatusResult.rejected(
           role: role,
           dealId: dealId,
           propertyId: propertyId,
@@ -202,7 +238,9 @@ class DealController {
         e.message.isEmpty ? 'Failed to load deal status.' : e.message,
       );
     } catch (_) {
-      return DealStatusResult.error('Unexpected error while loading deal status.');
+      return DealStatusResult.error(
+        'Unexpected error while loading deal status.',
+      );
     }
   }
 
@@ -231,10 +269,28 @@ class DealController {
         if (doneAt != null) {
           return DealActionResult.error('Deal already completed.');
         }
+        final rejectedAt = latest['rejected_at'];
+        if (rejectedAt != null) {
+          final created = await _repository.createPendingDeal(
+            seekerId: seekerId,
+            ownerId: ownerId,
+            propertyId: propertyId,
+          );
+          final dealIdRaw = created['deal_id'];
+          final dealId =
+              dealIdRaw is int
+                  ? dealIdRaw
+                  : (dealIdRaw is num ? dealIdRaw.toInt() : null);
+          if (dealId == null) {
+            return DealActionResult.error('Invalid deal id.');
+          }
+          return DealActionResult.success(dealId: dealId);
+        }
         final dealIdRaw = latest['deal_id'];
-        final dealId = dealIdRaw is int
-            ? dealIdRaw
-            : (dealIdRaw is num ? dealIdRaw.toInt() : null);
+        final dealId =
+            dealIdRaw is int
+                ? dealIdRaw
+                : (dealIdRaw is num ? dealIdRaw.toInt() : null);
         return DealActionResult.success(dealId: dealId);
       }
 
@@ -244,9 +300,10 @@ class DealController {
         propertyId: propertyId,
       );
       final dealIdRaw = created['deal_id'];
-      final dealId = dealIdRaw is int
-          ? dealIdRaw
-          : (dealIdRaw is num ? dealIdRaw.toInt() : null);
+      final dealId =
+          dealIdRaw is int
+              ? dealIdRaw
+              : (dealIdRaw is num ? dealIdRaw.toInt() : null);
       if (dealId == null) {
         return DealActionResult.error('Invalid deal id.');
       }
@@ -277,16 +334,35 @@ class DealController {
 
       await _repository.confirmDeal(dealId: dealId);
       await _propertyRepository.markPropertyInactive(propertyId: propertyId);
-      return DealActionResult.success(
-        dealId: dealId,
-        propertyId: propertyId,
-      );
+      return DealActionResult.success(dealId: dealId, propertyId: propertyId);
     } on PostgrestException catch (e) {
       return DealActionResult.error(
         e.message.isEmpty ? 'Failed to confirm deal.' : e.message,
       );
     } catch (_) {
       return DealActionResult.error('Unexpected error while confirming deal.');
+    }
+  }
+
+  Future<DealActionResult> rejectDeal({required int dealId}) async {
+    try {
+      final profile = await _repository.fetchCurrentUserProfile();
+      if (profile == null) {
+        return DealActionResult.error('Please login first.');
+      }
+      final role = (profile['role'] as String?)?.toLowerCase() ?? 'seeker';
+      if (role != 'owner') {
+        return DealActionResult.error('Only owners can reject a deal.');
+      }
+
+      await _repository.rejectDeal(dealId: dealId);
+      return DealActionResult.success(dealId: dealId);
+    } on PostgrestException catch (e) {
+      return DealActionResult.error(
+        e.message.isEmpty ? 'Failed to reject deal.' : e.message,
+      );
+    } catch (_) {
+      return DealActionResult.error('Unexpected error while rejecting deal.');
     }
   }
 }

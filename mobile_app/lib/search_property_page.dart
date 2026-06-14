@@ -23,28 +23,17 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
   String? _bedrooms;
   final TextEditingController _priceFromController = TextEditingController();
   final TextEditingController _priceToController = TextEditingController();
-  final FocusNode _priceFromFocusNode = FocusNode();
-  bool _hasUserEditedPriceTo = false;
-  bool _isAutoUpdatingPriceTo = false;
 
   final List<String> _propertyTypes = ['Apartment', 'House', 'Land'];
   final List<String> _rentTypes = ['Monthly', 'Yearly'];
   final List<String> _roomCounts = ['1', '2', '3', '4', '5+'];
 
+  bool get _isLandSelected => _propertyType == 'Land';
+
   List<String> get _availableCities =>
       _propertyState == null
           ? const []
           : (CityData.citiesByState[_propertyState] ?? const []);
-
-  @override
-  void initState() {
-    super.initState();
-    _priceFromFocusNode.addListener(() {
-      if (!_priceFromFocusNode.hasFocus) {
-        _applySuggestedPriceToFromCurrentFrom();
-      }
-    });
-  }
 
   void _goToSeekerHome() {
     Navigator.pushReplacement(
@@ -55,43 +44,9 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
 
   @override
   void dispose() {
-    _priceFromFocusNode.dispose();
     _priceFromController.dispose();
     _priceToController.dispose();
     super.dispose();
-  }
-
-  int _buildSuggestedPriceTo(int from) {
-    final suggested = (from * 1.5).round();
-    return suggested > from ? suggested : from + 1;
-  }
-
-  void _applySuggestedPriceToFromCurrentFrom() {
-    if (_hasUserEditedPriceTo) return;
-
-    final value = _priceFromController.text.trim();
-    if (value.isEmpty) return;
-
-    final int? from = int.tryParse(value);
-    if (from == null) return;
-
-    final int? currentTo = int.tryParse(_priceToController.text);
-    if (currentTo != null && currentTo > from) {
-      return;
-    }
-
-    final suggested = _buildSuggestedPriceTo(from).toString();
-    _isAutoUpdatingPriceTo = true;
-    _priceToController.value = TextEditingValue(
-      text: suggested,
-      selection: TextSelection.collapsed(offset: suggested.length),
-    );
-    _isAutoUpdatingPriceTo = false;
-  }
-
-  void _onPriceToChanged(String value) {
-    if (_isAutoUpdatingPriceTo) return;
-    _hasUserEditedPriceTo = true;
   }
 
   int? _parseRoomFilter(String? value) {
@@ -218,6 +173,7 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                     hint: 'Place Holder...',
                                     value: _rentType,
                                     items: _rentTypes,
+                                    allowAny: true,
                                     onChanged: (value) {
                                       setState(() {
                                         _rentType = value;
@@ -235,9 +191,14 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                   hint: 'Place Holder...',
                                   value: _propertyType,
                                   items: _propertyTypes,
+                                  allowAny: true,
                                   onChanged: (value) {
                                     setState(() {
                                       _propertyType = value;
+                                      if (_isLandSelected) {
+                                        _bedrooms = null;
+                                        _bathrooms = null;
+                                      }
                                     });
                                   },
                                   border: border,
@@ -251,6 +212,7 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                   hint: 'Place Holder...',
                                   value: _propertyState,
                                   items: CityData.states,
+                                  allowAny: true,
                                   onChanged: (value) {
                                     setState(() {
                                       _propertyState = value;
@@ -271,10 +233,12 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                 child: _SelectBox(
                                   hint:
                                       _propertyState == null
-                                          ? 'Select state first'
+                                          ? 'Any'
                                           : 'Place Holder...',
                                   value: _propertyCity,
                                   items: _availableCities,
+                                  allowAny: true,
+                                  enabled: _propertyState != null,
                                   onChanged: (value) {
                                     setState(() {
                                       _propertyCity = value;
@@ -288,9 +252,14 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                               _LabeledRow(
                                 label: 'Bedrooms',
                                 child: _SelectBox(
-                                  hint: '4',
-                                  value: _bedrooms,
+                                  hint:
+                                      _isLandSelected
+                                          ? 'Not used for land'
+                                          : 'Any',
+                                  value: _isLandSelected ? null : _bedrooms,
                                   items: _roomCounts,
+                                  allowAny: true,
+                                  enabled: !_isLandSelected,
                                   onChanged: (value) {
                                     setState(() {
                                       _bedrooms = value;
@@ -304,9 +273,14 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                               _LabeledRow(
                                 label: 'Bathrooms',
                                 child: _SelectBox(
-                                  hint: '4',
-                                  value: _bathrooms,
+                                  hint:
+                                      _isLandSelected
+                                          ? 'Not used for land'
+                                          : 'Any',
+                                  value: _isLandSelected ? null : _bathrooms,
                                   items: _roomCounts,
+                                  allowAny: true,
+                                  enabled: !_isLandSelected,
                                   onChanged: (value) {
                                     setState(() {
                                       _bathrooms = value;
@@ -327,7 +301,6 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                         child: _TextFieldBox(
                                           controller: _priceFromController,
                                           hint: 'From',
-                                          focusNode: _priceFromFocusNode,
                                           keyboardType: TextInputType.number,
                                           inputFormatters: [
                                             FilteringTextInputFormatter
@@ -335,8 +308,6 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                           ],
                                           border: border,
                                           fill: inputBg,
-                                          onEditingComplete:
-                                              _applySuggestedPriceToFromCurrentFrom,
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -360,7 +331,6 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                           ],
                                           border: border,
                                           fill: inputBg,
-                                          onChanged: _onPriceToChanged,
                                         ),
                                       ),
                                     ],
@@ -448,9 +418,7 @@ class _SearchPropertyPageState extends State<SearchPropertyPage> {
                                         minPrice != null &&
                                                 rawMaxPrice != null &&
                                                 rawMaxPrice < minPrice
-                                            ? _buildSuggestedPriceTo(
-                                              minPrice.toInt(),
-                                            ).toDouble()
+                                            ? minPrice
                                             : rawMaxPrice;
                                     final criteria = SearchCriteria(
                                       transactionType:
@@ -612,6 +580,8 @@ class _SelectBox extends StatelessWidget {
     required this.onChanged,
     required this.border,
     required this.fill,
+    this.allowAny = false,
+    this.enabled = true,
   });
 
   final String hint;
@@ -620,51 +590,74 @@ class _SelectBox extends StatelessWidget {
   final ValueChanged<String?> onChanged;
   final Color border;
   final Color fill;
+  final bool allowAny;
+  final bool enabled;
+
+  static const String _anyValue = '__any__';
 
   @override
   Widget build(BuildContext context) {
+    final dropdownItems =
+        allowAny ? <String>[_anyValue, ...items] : List<String>.from(items);
+    final selectedValue = value != null && items.contains(value) ? value : null;
+
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: fill,
+        color: enabled ? fill : const Color(0xFFEEF0F3),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: border),
+        border: Border.all(color: enabled ? border : const Color(0xFFE1E4E8)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: selectedValue,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF1C2A4A),
-            size: 26,
+          icon: Icon(
+            enabled
+                ? Icons.keyboard_arrow_down_rounded
+                : Icons.lock_outline_rounded,
+            color: enabled ? const Color(0xFF1C2A4A) : const Color(0xFF9AA1AD),
+            size: enabled ? 26 : 20,
           ),
           hint: Text(
             hint,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFD1D4D9),
+            style: TextStyle(
+              color:
+                  enabled ? const Color(0xFFD1D4D9) : const Color(0xFF9AA1AD),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
-          style: const TextStyle(
-            color: Color(0xFF1F2430),
+          style: TextStyle(
+            color: enabled ? const Color(0xFF1F2430) : const Color(0xFF9AA1AD),
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
           dropdownColor: Colors.white,
           items:
-              items
+              dropdownItems
                   .map(
                     (item) => DropdownMenuItem<String>(
                       value: item,
-                      child: Text(item, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        item == _anyValue ? 'Any' : item,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   )
                   .toList(),
-          onChanged: onChanged,
+          onChanged:
+              enabled
+                  ? (selected) {
+                    if (selected == _anyValue) {
+                      onChanged(null);
+                      return;
+                    }
+                    onChanged(selected);
+                  }
+                  : null,
         ),
       ),
     );
@@ -679,9 +672,6 @@ class _TextFieldBox extends StatelessWidget {
     required this.inputFormatters,
     required this.border,
     required this.fill,
-    this.focusNode,
-    this.onChanged,
-    this.onEditingComplete,
   });
 
   final TextEditingController controller;
@@ -690,9 +680,6 @@ class _TextFieldBox extends StatelessWidget {
   final List<TextInputFormatter> inputFormatters;
   final Color border;
   final Color fill;
-  final FocusNode? focusNode;
-  final ValueChanged<String>? onChanged;
-  final VoidCallback? onEditingComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -705,11 +692,8 @@ class _TextFieldBox extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        focusNode: focusNode,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
-        onChanged: onChanged,
-        onEditingComplete: onEditingComplete,
         decoration: InputDecoration(
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(

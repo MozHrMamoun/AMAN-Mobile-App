@@ -26,7 +26,9 @@ void main() {
 
     test('validates required property type and city', () async {
       final controller = WishedPropertyController(
-        repository: FakeWishedPropertyRepository(currentUserIdValue: 'seeker-1'),
+        repository: FakeWishedPropertyRepository(
+          currentUserIdValue: 'seeker-1',
+        ),
       );
 
       final result = await controller.saveWish(
@@ -45,7 +47,9 @@ void main() {
 
     test('requires rent type for rent wishes', () async {
       final controller = WishedPropertyController(
-        repository: FakeWishedPropertyRepository(currentUserIdValue: 'seeker-1'),
+        repository: FakeWishedPropertyRepository(
+          currentUserIdValue: 'seeker-1',
+        ),
       );
 
       final result = await controller.saveWish(
@@ -64,7 +68,9 @@ void main() {
 
     test('validates numeric price input', () async {
       final controller = WishedPropertyController(
-        repository: FakeWishedPropertyRepository(currentUserIdValue: 'seeker-1'),
+        repository: FakeWishedPropertyRepository(
+          currentUserIdValue: 'seeker-1',
+        ),
       );
 
       final result = await controller.saveWish(
@@ -82,10 +88,10 @@ void main() {
     });
 
     test('saves wish successfully', () async {
-      final repository = FakeWishedPropertyRepository(currentUserIdValue: 'seeker-9');
-      final controller = WishedPropertyController(
-        repository: repository,
+      final repository = FakeWishedPropertyRepository(
+        currentUserIdValue: 'seeker-9',
       );
+      final controller = WishedPropertyController(repository: repository);
 
       final result = await controller.saveWish(
         isBuy: false,

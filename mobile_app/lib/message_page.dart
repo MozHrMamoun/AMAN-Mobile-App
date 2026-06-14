@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'add_property_page.dart';
 import 'chat_detail_page.dart';
 import 'core/app_session.dart';
+import 'core/guest_login_prompt.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'owner_home_page.dart';
 import 'owner_more_page.dart';
@@ -59,10 +60,11 @@ class _MessagePageState extends State<MessagePage> {
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
+        showGuestLoginPrompt(
+          context,
+          replaceCurrentPage: true,
+          popBlockedPageOnCancel: true,
         );
-        Navigator.of(context).maybePop();
       });
       return;
     }

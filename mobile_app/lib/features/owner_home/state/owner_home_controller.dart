@@ -2,7 +2,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/owner_home_repository.dart';
 
-enum OwnerActivityKind { chat, dealPending, dealCompleted, listingInactive }
+enum OwnerActivityKind {
+  chat,
+  dealPending,
+  dealCompleted,
+  dealRejected,
+  listingInactive,
+}
 
 class OwnerActivityItem {
   const OwnerActivityItem({
@@ -188,25 +194,42 @@ class OwnerHomeController {
         final dealId = parseInt(row['deal_id']);
         final propertyId = parseInt(row['property_id']);
         final isCompleted = row['done_at'] != null;
+        final isRejected = row['rejected_at'] != null;
         return OwnerActivityItem(
           kind:
               isCompleted
                   ? OwnerActivityKind.dealCompleted
+                  : isRejected
+                  ? OwnerActivityKind.dealRejected
                   : OwnerActivityKind.dealPending,
           chatId: 0,
           dealId: dealId,
           seekerUserId: seekerId,
           ownerUserId: row['owner_id']?.toString(),
           peerName: names[seekerId] ?? 'Seeker',
-          title: isCompleted ? 'Deal completed' : 'Deal requested',
+          title:
+              isCompleted
+                  ? 'Deal completed'
+                  : isRejected
+                  ? 'Deal rejected'
+                  : 'Deal requested',
           lastMessageText:
               isCompleted
                   ? 'This property deal was completed successfully.'
+                  : isRejected
+                  ? 'You rejected this deal request.'
                   : 'A seeker is waiting for your confirmation.',
           lastMessageAt:
-              parseDate(row['done_at']) ?? parseDate(row['created_at']),
+              parseDate(row['done_at']) ??
+              parseDate(row['rejected_at']) ??
+              parseDate(row['created_at']),
           propertyId: propertyId,
-          statusLabel: isCompleted ? 'Completed' : 'Deal',
+          statusLabel:
+              isCompleted
+                  ? 'Completed'
+                  : isRejected
+                  ? 'Rejected'
+                  : 'Deal',
         );
       });
 

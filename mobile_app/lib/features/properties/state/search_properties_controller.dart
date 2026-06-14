@@ -71,6 +71,7 @@ class SearchPropertyItem {
     required this.transactionType,
     required this.rentType,
     required this.propertyType,
+    required this.price,
     required this.bedrooms,
     required this.bathrooms,
     required this.ownerName,
@@ -83,6 +84,7 @@ class SearchPropertyItem {
   final String transactionType;
   final String? rentType;
   final String propertyType;
+  final double price;
   final int? bedrooms;
   final int? bathrooms;
   final String ownerName;
@@ -107,6 +109,7 @@ class SearchPropertyItem {
           ((row['transaction_type'] as String?) ?? '').toLowerCase(),
       rentType: (row['rent_type'] as String?)?.toLowerCase(),
       propertyType: (row['property_type'] as String?) ?? 'Property',
+      price: (row['price'] as num?)?.toDouble() ?? 0,
       bedrooms: parseInt(row['bedrooms']),
       bathrooms: parseInt(row['bathrooms']),
       ownerName: (row['owner_name'] as String?) ?? 'Unknown',

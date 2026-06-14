@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/app_session.dart';
+import 'core/guest_login_prompt.dart';
 import 'features/notifications/state/notification_controller.dart';
 import 'property_detail_page.dart';
 
@@ -24,10 +25,11 @@ class _NotificationPageState extends State<NotificationPage> {
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
+        showGuestLoginPrompt(
+          context,
+          replaceCurrentPage: true,
+          popBlockedPageOnCancel: true,
         );
-        Navigator.of(context).maybePop();
       });
       return;
     }
@@ -55,20 +57,22 @@ class _NotificationPageState extends State<NotificationPage> {
       await _controller.markRead(item.notificationId);
       if (!mounted) return;
       setState(() {
-        _items = _items
-            .map(
-              (e) => e.notificationId == item.notificationId
-                  ? NotificationItem(
-                      notificationId: e.notificationId,
-                      propertyId: e.propertyId,
-                      title: e.title,
-                      body: e.body,
-                      createdAt: e.createdAt,
-                      isRead: true,
-                    )
-                  : e,
-            )
-            .toList();
+        _items =
+            _items
+                .map(
+                  (e) =>
+                      e.notificationId == item.notificationId
+                          ? NotificationItem(
+                            notificationId: e.notificationId,
+                            propertyId: e.propertyId,
+                            title: e.title,
+                            body: e.body,
+                            createdAt: e.createdAt,
+                            isRead: true,
+                          )
+                          : e,
+                )
+                .toList();
       });
     }
 
@@ -127,95 +131,91 @@ class _NotificationPageState extends State<NotificationPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _errorMessage != null
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _errorMessage != null
                         ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(
-                                  color: Color(0xFF1F2430),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                textAlign: TextAlign.center,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: Color(0xFF1F2430),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                          )
+                          ),
+                        )
                         : _items.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No notifications.',
-                                  style: TextStyle(
-                                    color: Color(0xFF1F2430),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            : RefreshIndicator(
-                                onRefresh: _load,
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    16,
-                                    16,
-                                    12,
-                                  ),
-                                  itemCount: _items.length,
-                                  itemBuilder: (context, index) {
-                                    final item = _items[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
-                                      child: Material(
-                                        color: item.isRead
-                                            ? const Color(0xFFF2F2F3)
-                                            : Colors.white,
+                        ? const Center(
+                          child: Text(
+                            'No notifications.',
+                            style: TextStyle(
+                              color: Color(0xFF1F2430),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                        : RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                            itemCount: _items.length,
+                            itemBuilder: (context, index) {
+                              final item = _items[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Material(
+                                  color:
+                                      item.isRead
+                                          ? const Color(0xFFF2F2F3)
+                                          : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => _openNotification(item),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(10),
-                                          onTap: () => _openNotification(item),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              border: Border.all(
-                                                color: const Color(0xFFE0E2E5),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  item.title,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF1F2430),
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  item.body,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF4A5160),
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                        border: Border.all(
+                                          color: const Color(0xFFE0E2E5),
                                         ),
                                       ),
-                                    );
-                                  },
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            style: const TextStyle(
+                                              color: Color(0xFF1F2430),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            item.body,
+                                            style: const TextStyle(
+                                              color: Color(0xFF4A5160),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              );
+                            },
+                          ),
+                        ),
               ),
             ),
           ],

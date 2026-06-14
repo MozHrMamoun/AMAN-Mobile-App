@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:aman/login_page.dart';
 
 import '../../../core/app_session.dart';
+import '../../../core/guest_login_prompt.dart';
 import '../state/profile_controller.dart';
 
 class ProfileEditPage extends StatefulWidget {
@@ -30,10 +31,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
+        showGuestLoginPrompt(
+          context,
+          replaceCurrentPage: true,
+          popBlockedPageOnCancel: true,
         );
-        Navigator.of(context).maybePop();
       });
       return;
     }
@@ -196,138 +198,149 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     topRight: Radius.circular(30),
                   ),
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(18, 32, 18, 64),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8F8F9),
-                                border: Border.all(color: border),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x12000000),
-                                    offset: Offset(0, 3),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  const _InputLabel('Full Name'),
-                                  _InputField(
-                                    hint: 'Enter Your Name',
-                                    icon: Icons.person,
-                                    controller: _fullNameController,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const _InputLabel('Email'),
-                                  _InputField(
-                                    hint: 'Enter Your Email',
-                                    icon: Icons.email,
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const _InputLabel('Password'),
-                                  _InputField(
-                                    hint: 'Enter New Password (optional)',
-                                    icon: Icons.password,
-                                    controller: _passwordController,
-                                    obscure: true,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const _InputLabel('Phone Number'),
-                                  _InputField(
-                                    hint: '+249XXXXXXXXX',
-                                    icon: Icons.phone,
-                                    controller: _phoneController,
-                                    keyboardType: TextInputType.phone,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9+]'),
-                                      ),
-                                      LengthLimitingTextInputFormatter(13),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _editProfile,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  elevation: 0,
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(18, 32, 18, 64),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  14,
+                                  14,
+                                  16,
                                 ),
-                                child: _isSubmitting
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : const Text(
-                                        'Edit',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 30 / 2,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _isLoggingOut ? null : _logout,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFB2455D),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  elevation: 0,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8F8F9),
+                                  border: Border.all(color: border),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12000000),
+                                      offset: Offset(0, 3),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
                                 ),
-                                child: _isLoggingOut
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
+                                child: Column(
+                                  children: [
+                                    const _InputLabel('Full Name'),
+                                    _InputField(
+                                      hint: 'Enter Your Name',
+                                      icon: Icons.person,
+                                      controller: _fullNameController,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const _InputLabel('Email'),
+                                    _InputField(
+                                      hint: 'Enter Your Email',
+                                      icon: Icons.email,
+                                      controller: _emailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const _InputLabel('Password'),
+                                    _InputField(
+                                      hint: 'Enter New Password (optional)',
+                                      icon: Icons.password,
+                                      controller: _passwordController,
+                                      obscure: true,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const _InputLabel('Phone Number'),
+                                    _InputField(
+                                      hint: '+249XXXXXXXXX',
+                                      icon: Icons.phone,
+                                      controller: _phoneController,
+                                      keyboardType: TextInputType.phone,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9+]'),
                                         ),
-                                      )
-                                    : const Text(
-                                        'Logout',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 30 / 2,
-                                        ),
-                                      ),
+                                        LengthLimitingTextInputFormatter(13),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 26),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      _isSubmitting ? null : _editProfile,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child:
+                                      _isSubmitting
+                                          ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Text(
+                                            'Edit',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 30 / 2,
+                                            ),
+                                          ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _isLoggingOut ? null : _logout,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFB2455D),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child:
+                                      _isLoggingOut
+                                          ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : const Text(
+                                            'Logout',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 30 / 2,
+                                            ),
+                                          ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
               ),
             ),
           ],

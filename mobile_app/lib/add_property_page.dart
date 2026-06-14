@@ -1157,7 +1157,7 @@ class _InlineFeedbackCard extends StatelessWidget {
     final background =
         isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
     final border = isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
-
+  
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

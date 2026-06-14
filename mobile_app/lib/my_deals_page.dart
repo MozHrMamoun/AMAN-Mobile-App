@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'core/app_session.dart';
+import 'core/guest_login_prompt.dart';
 import 'deal_detail_page.dart';
 import 'features/deals/state/deals_list_controller.dart';
 import 'more_service_page.dart';
 import 'owner_home_page.dart';
 
-enum DealsFilter { active, completed }
+enum DealsFilter { active, history }
 
 class MyDealsPage extends StatefulWidget {
   const MyDealsPage({
@@ -39,10 +40,11 @@ class _MyDealsPageState extends State<MyDealsPage> {
     if (AppSession.isGuestMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
+        showGuestLoginPrompt(
+          context,
+          replaceCurrentPage: true,
+          popBlockedPageOnCancel: true,
         );
-        Navigator.of(context).maybePop();
       });
       return;
     }
@@ -112,11 +114,12 @@ class _MyDealsPageState extends State<MyDealsPage> {
     const primary = Color(0xFF1C2A4A);
     const page = Color(0xFFE9EAEC);
 
-    final activeItems = _allItems.where((e) => !e.isCompleted).toList();
-    final completedItems = _allItems.where((e) => e.isCompleted).toList();
-    final visibleItems = _selectedFilter == DealsFilter.active
-        ? activeItems
-        : completedItems;
+    final activeItems =
+        _allItems.where((e) => !e.isCompleted && !e.isRejected).toList();
+    final historyItems =
+        _allItems.where((e) => e.isCompleted || e.isRejected).toList();
+    final visibleItems =
+        _selectedFilter == DealsFilter.active ? activeItems : historyItems;
 
     return PopScope(
       canPop: false,
@@ -164,98 +167,122 @@ class _MyDealsPageState extends State<MyDealsPage> {
                       topRight: Radius.circular(30),
                     ),
                   ),
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _errorMessage != null
+                  child:
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _errorMessage != null
                           ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(
-                                    color: Color(0xFF1F2430),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFF1F2430),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: _load,
-                              child: ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                                children: [
-                                  _DealsOverviewCard(
-                                    isOwner: _currentRole == 'owner',
-                                    activeLabel: _activeFilterLabel,
-                                    activeCount: activeItems.length,
-                                    completedCount: completedItems.length,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _DealsSegmentedControl(
-                                    selectedFilter: _selectedFilter,
-                                    activeLabel: _activeFilterLabel,
-                                    activeCount: activeItems.length,
-                                    completedCount: completedItems.length,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedFilter = value;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(height: 18),
-                                  if (visibleItems.isEmpty)
-                                    _EmptyState(
-                                      title: _selectedFilter == DealsFilter.active
-                                          ? _currentRole == 'owner'
-                                              ? 'No active owner deals'
-                                              : 'No active deals yet'
-                                          : 'No completed deals yet',
-                                      text: _selectedFilter == DealsFilter.active
-                                          ? _currentRole == 'owner'
-                                              ? 'When a seeker starts a deal on one of your listings, it will appear here for follow-up.'
-                                              : 'Deals you are currently discussing will appear here once they start.'
-                                          : 'Completed deals will stay here so you can revisit them later.',
-                                    )
-                                  else
-                                    ...visibleItems.map(
-                                      (item) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
-                                        child: _DealCard(
-                                          item: item,
-                                          timeLabel: item.isCompleted
-                                              ? 'Completed ${_formatDate(item.doneAt)} ${_formatTime(item.doneAt)}'
-                                              : 'Started ${_formatDate(item.createdAt)} ${_formatTime(item.createdAt)}',
-                                          statusLabel: item.isCompleted
-                                              ? 'Completed'
-                                              : _currentRole == 'owner'
-                                                  ? 'Pending your confirmation'
-                                                  : 'Waiting for owner confirmation',
-                                          statusColor: item.isCompleted
-                                              ? const Color(0xFF2F7D32)
-                                              : const Color(0xFFD68600),
-                                          onTap: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => DealDetailPage(
-                                                  peerName: item.otherUserName,
-                                                  seekerUserId: item.seekerUserId,
-                                                  ownerUserId: item.ownerUserId,
-                                                  propertyId: item.propertyId,
-                                                  propertySummary: item.propertySummary,
-                                                ),
-                                              ),
-                                            );
-                                            await _load();
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                                textAlign: TextAlign.center,
                               ),
                             ),
+                          )
+                          : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                18,
+                                16,
+                                24,
+                              ),
+                              children: [
+                                _DealsOverviewCard(
+                                  isOwner: _currentRole == 'owner',
+                                  activeLabel: _activeFilterLabel,
+                                  activeCount: activeItems.length,
+                                  historyCount: historyItems.length,
+                                ),
+                                const SizedBox(height: 16),
+                                _DealsSegmentedControl(
+                                  selectedFilter: _selectedFilter,
+                                  activeLabel: _activeFilterLabel,
+                                  activeCount: activeItems.length,
+                                  historyCount: historyItems.length,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedFilter = value;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 18),
+                                if (visibleItems.isEmpty)
+                                  _EmptyState(
+                                    title:
+                                        _selectedFilter == DealsFilter.active
+                                            ? _currentRole == 'owner'
+                                                ? 'No active owner deals'
+                                                : 'No active deals yet'
+                                            : 'No deal history yet',
+                                    text:
+                                        _selectedFilter == DealsFilter.active
+                                            ? _currentRole == 'owner'
+                                                ? 'When a seeker starts a deal on one of your listings, it will appear here for follow-up.'
+                                                : 'Deals you are currently discussing will appear here once they start.'
+                                            : 'Completed and rejected deals will stay here so you can revisit them later.',
+                                  )
+                                else
+                                  ...visibleItems.map(
+                                    (item) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: _DealCard(
+                                        item: item,
+                                        timeLabel:
+                                            item.isCompleted
+                                                ? 'Completed ${_formatDate(item.doneAt)} ${_formatTime(item.doneAt)}'
+                                                : item.isRejected
+                                                ? 'Rejected ${_formatDate(item.rejectedAt)} ${_formatTime(item.rejectedAt)}'
+                                                : 'Started ${_formatDate(item.createdAt)} ${_formatTime(item.createdAt)}',
+                                        statusLabel:
+                                            item.isCompleted
+                                                ? 'Completed'
+                                                : item.isRejected
+                                                ? 'Rejected'
+                                                : _currentRole == 'owner'
+                                                ? 'Pending your confirmation'
+                                                : 'Waiting for owner confirmation',
+                                        statusColor:
+                                            item.isCompleted
+                                                ? const Color(0xFF2F7D32)
+                                                : item.isRejected
+                                                ? const Color(0xFFC65D5D)
+                                                : const Color(0xFFD68600),
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) => DealDetailPage(
+                                                    peerName:
+                                                        item.otherUserName,
+                                                    seekerUserId:
+                                                        item.seekerUserId,
+                                                    ownerUserId:
+                                                        item.ownerUserId,
+                                                    propertyId: item.propertyId,
+                                                    propertySummary:
+                                                        item.propertySummary,
+                                                  ),
+                                            ),
+                                          );
+                                          await _load();
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                 ),
               ),
             ],
@@ -271,14 +298,14 @@ class _DealsSegmentedControl extends StatelessWidget {
     required this.selectedFilter,
     required this.activeLabel,
     required this.activeCount,
-    required this.completedCount,
+    required this.historyCount,
     required this.onChanged,
   });
 
   final DealsFilter selectedFilter;
   final String activeLabel;
   final int activeCount;
-  final int completedCount;
+  final int historyCount;
   final ValueChanged<DealsFilter> onChanged;
 
   @override
@@ -303,10 +330,10 @@ class _DealsSegmentedControl extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _DealsFilterTab(
-              label: 'Completed',
-              count: completedCount,
-              selected: selectedFilter == DealsFilter.completed,
-              onTap: () => onChanged(DealsFilter.completed),
+              label: 'History',
+              count: historyCount,
+              selected: selectedFilter == DealsFilter.history,
+              onTap: () => onChanged(DealsFilter.history),
             ),
           ),
         ],
@@ -358,9 +385,10 @@ class _DealsFilterTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0x33FFFFFF)
-                    : const Color(0xFF1C2A4A),
+                color:
+                    selected
+                        ? const Color(0x33FFFFFF)
+                        : const Color(0xFF1C2A4A),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -384,13 +412,13 @@ class _DealsOverviewCard extends StatelessWidget {
     required this.isOwner,
     required this.activeLabel,
     required this.activeCount,
-    required this.completedCount,
+    required this.historyCount,
   });
 
   final bool isOwner;
   final String activeLabel;
   final int activeCount;
-  final int completedCount;
+  final int historyCount;
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +444,7 @@ class _DealsOverviewCard extends StatelessWidget {
           Text(
             isOwner
                 ? 'Track which deals still need your decision and which ones have already been closed.'
-                : 'Keep an eye on conversations that are still pending and the ones you have already completed.',
+                : 'Keep an eye on conversations that are still pending and the ones that have already been closed.',
             style: const TextStyle(
               color: Color(0xFF8E949F),
               fontSize: 13,
@@ -438,10 +466,10 @@ class _DealsOverviewCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _DealMetricCard(
-                  label: 'Completed',
-                  value: completedCount.toString(),
-                  accentColor: const Color(0xFF2F7D32),
-                  icon: Icons.verified_rounded,
+                  label: 'History',
+                  value: historyCount.toString(),
+                  accentColor: const Color(0xFF6E7583),
+                  icon: Icons.history_rounded,
                 ),
               ),
             ],
@@ -533,11 +561,7 @@ class _EmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.inbox_rounded,
-            color: Color(0xFF8E949F),
-            size: 28,
-          ),
+          const Icon(Icons.inbox_rounded, color: Color(0xFF8E949F), size: 28),
           const SizedBox(height: 10),
           Text(
             title,
@@ -566,10 +590,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _DealStatusPill extends StatelessWidget {
-  const _DealStatusPill({
-    required this.label,
-    required this.color,
-  });
+  const _DealStatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -634,29 +655,31 @@ class _DealCard extends StatelessWidget {
                 child: SizedBox(
                   width: 74,
                   height: 74,
-                  child: property == null ||
-                          property.imageUrl == null ||
-                          property.imageUrl!.trim().isEmpty
-                      ? Container(
-                          color: const Color(0xFFF2F2F3),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.home_work_outlined,
-                            color: Color(0xFF8E949F),
-                          ),
-                        )
-                      : Image.network(
-                          property.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                  child:
+                      property == null ||
+                              property.imageUrl == null ||
+                              property.imageUrl!.trim().isEmpty
+                          ? Container(
                             color: const Color(0xFFF2F2F3),
                             alignment: Alignment.center,
                             child: const Icon(
-                              Icons.broken_image_outlined,
+                              Icons.home_work_outlined,
                               color: Color(0xFF8E949F),
                             ),
+                          )
+                          : Image.network(
+                            property.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  color: const Color(0xFFF2F2F3),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Color(0xFF8E949F),
+                                  ),
+                                ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -699,10 +722,7 @@ class _DealCard extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    _DealStatusPill(
-                      label: statusLabel,
-                      color: statusColor,
-                    ),
+                    _DealStatusPill(label: statusLabel, color: statusColor),
                     const SizedBox(height: 6),
                     Text(
                       timeLabel,

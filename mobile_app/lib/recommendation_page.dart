@@ -4,14 +4,12 @@ import 'package:flutter/services.dart';
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
 import 'core/city_data.dart';
+import 'core/guest_login_prompt.dart';
 import 'features/properties/state/search_properties_controller.dart';
 import 'features/wished/state/wished_property_controller.dart';
 
 class RecommendationPage extends StatefulWidget {
-  const RecommendationPage({
-    super.key,
-    this.initialCriteria,
-  });
+  const RecommendationPage({super.key, this.initialCriteria});
 
   final SearchCriteria? initialCriteria;
 
@@ -80,10 +78,7 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
   Future<void> _saveWish() async {
     if (AppSession.isGuestMode) {
-      setState(() {
-        _formMessage = 'Please login to save a wished property.';
-        _isFormMessageError = true;
-      });
+      await showGuestLoginPrompt(context);
       return;
     }
 
@@ -212,10 +207,11 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                   child: _DealTypeTab(
                                     label: 'Buy',
                                     selected: _isBuySelected,
-                                    onTap: () => setState(() {
-                                      _isBuySelected = true;
-                                      _rentType = null;
-                                    }),
+                                    onTap:
+                                        () => setState(() {
+                                          _isBuySelected = true;
+                                          _rentType = null;
+                                        }),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -223,7 +219,10 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                   child: _DealTypeTab(
                                     label: 'Rent',
                                     selected: !_isBuySelected,
-                                    onTap: () => setState(() => _isBuySelected = false),
+                                    onTap:
+                                        () => setState(
+                                          () => _isBuySelected = false,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -236,7 +235,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                   value: _rentType,
                                   hint: 'Place Holder...',
                                   items: _rentTypes,
-                                  onChanged: (v) => setState(() => _rentType = v),
+                                  onChanged:
+                                      (v) => setState(() => _rentType = v),
                                 ),
                               ),
                             ],
@@ -247,7 +247,9 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                 controller: _priceController,
                                 hint: 'Type price',
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -257,7 +259,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                 value: _propertyType,
                                 hint: 'Place Holder...',
                                 items: _propertyTypes,
-                                onChanged: (v) => setState(() => _propertyType = v),
+                                onChanged:
+                                    (v) => setState(() => _propertyType = v),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -267,7 +270,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                 value: _propertyCity,
                                 hint: 'Place Holder...',
                                 items: CityData.allCities,
-                                onChanged: (v) => setState(() => _propertyCity = v),
+                                onChanged:
+                                    (v) => setState(() => _propertyCity = v),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -287,7 +291,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
                                 value: _bathrooms,
                                 hint: '4',
                                 items: _counts,
-                                onChanged: (v) => setState(() => _bathrooms = v),
+                                onChanged:
+                                    (v) => setState(() => _bathrooms = v),
                               ),
                             ),
                           ],
@@ -307,22 +312,25 @@ class _RecommendationPageState extends State<RecommendationPage> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          child:
+                              _isSaving
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : const Text(
+                                    'Save',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  'Save',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
@@ -365,12 +373,12 @@ class _TextFieldBox extends StatelessWidget {
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFFD1D4D9),
-            fontSize: 14,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 12,
           ),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFFD1D4D9), fontSize: 14),
         ),
       ),
     );
@@ -511,14 +519,15 @@ class _SelectBox extends StatelessWidget {
             fontSize: 15,
             fontWeight: FontWeight.w500,
           ),
-          items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item, overflow: TextOverflow.ellipsis),
-                ),
-              )
-              .toList(),
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
           onChanged: onChanged,
         ),
       ),
@@ -527,22 +536,17 @@ class _SelectBox extends StatelessWidget {
 }
 
 class _InlineFeedbackCard extends StatelessWidget {
-  const _InlineFeedbackCard({
-    required this.message,
-    required this.isError,
-  });
+  const _InlineFeedbackCard({required this.message, required this.isError});
 
   final String message;
   final bool isError;
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
+    final color = isError ? const Color(0xFFC2410C) : const Color(0xFF2F7D32);
     final background =
         isError ? const Color(0xFFFFF1E8) : const Color(0xFFE8F5EC);
-    final border =
-        isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
+    final border = isError ? const Color(0xFFF4C7B5) : const Color(0xFFCFE8D6);
 
     return Container(
       width: double.infinity,

@@ -8,6 +8,7 @@ class SeekerHomePropertyItem {
     required this.ownerUserId,
     required this.propertyType,
     required this.propertyCity,
+    required this.price,
     required this.bedrooms,
     required this.bathrooms,
     required this.ownerName,
@@ -19,6 +20,7 @@ class SeekerHomePropertyItem {
   final String ownerUserId;
   final String propertyType;
   final String propertyCity;
+  final double price;
   final int? bedrooms;
   final int? bathrooms;
   final String ownerName;
@@ -33,13 +35,15 @@ class SeekerHomePropertyItem {
     }
 
     final idRaw = row['property_id'];
-    final propertyId = idRaw is int ? idRaw : (idRaw is num ? idRaw.toInt() : 0);
+    final propertyId =
+        idRaw is int ? idRaw : (idRaw is num ? idRaw.toInt() : 0);
 
     return SeekerHomePropertyItem(
       propertyId: propertyId,
       ownerUserId: (row['owner_id']?.toString() ?? ''),
       propertyType: (row['property_type'] as String?) ?? 'Property',
       propertyCity: (row['property_city'] as String?) ?? '-',
+      price: (row['price'] as num?)?.toDouble() ?? 0,
       bedrooms: parseInt(row['bedrooms']),
       bathrooms: parseInt(row['bathrooms']),
       ownerName: (row['owner_name'] as String?) ?? 'Unknown',
@@ -71,7 +75,7 @@ class SeekerHomeResult {
 
 class SeekerHomeController {
   SeekerHomeController({PropertyRepository? repository})
-      : _repository = repository ?? PropertyRepository();
+    : _repository = repository ?? PropertyRepository();
 
   final PropertyRepository _repository;
 
@@ -91,7 +95,9 @@ class SeekerHomeController {
         e.message.isEmpty ? 'Failed to load properties.' : e.message,
       );
     } catch (_) {
-      return SeekerHomeResult.error('Unexpected error while loading properties.');
+      return SeekerHomeResult.error(
+        'Unexpected error while loading properties.',
+      );
     }
   }
 }

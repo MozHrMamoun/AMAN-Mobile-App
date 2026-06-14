@@ -4,6 +4,7 @@ import 'chat_detail_page.dart';
 import 'core/app_session.dart';
 import 'core/app_theme.dart';
 import 'core/city_data.dart';
+import 'core/guest_login_prompt.dart';
 import 'edit_information_page.dart';
 import 'features/chat/state/chat_list_controller.dart';
 import 'features/properties/state/seeker_home_controller.dart';
@@ -186,9 +187,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 
   Future<void> _openNotifications() async {
     if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      await showGuestLoginPrompt(context);
       return;
     }
     await Navigator.push(
@@ -204,9 +203,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
     required int propertyId,
   }) async {
     if (AppSession.isGuestMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to use this feature.')),
-      );
+      await showGuestLoginPrompt(context);
       return;
     }
 
@@ -243,9 +240,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
 
     void onNavTap(int index) {
       if (AppSession.isGuestMode && index != 0 && index != 1) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please login to use this feature.')),
-        );
+        showGuestLoginPrompt(context);
         return;
       }
 
@@ -315,13 +310,7 @@ class _SeekerHomePageState extends State<SeekerHomePage> {
                             notificationCount: _unreadNotifications,
                             onProfileTap: () {
                               if (AppSession.isGuestMode) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Please login to use this feature.',
-                                    ),
-                                  ),
-                                );
+                                showGuestLoginPrompt(context);
                                 return;
                               }
                               Navigator.push(
@@ -918,20 +907,12 @@ class _PropertyCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onContactTap;
 
-  String _buildShortName(String value) {
-    final parts =
-        value
-            .trim()
-            .split(RegExp(r'\s+'))
-            .where((part) => part.isNotEmpty)
-            .toList();
-    if (parts.isEmpty) return 'Unknown';
-    if (parts.length == 1) return parts.first;
-    return '${parts.first} ${parts.last}';
-  }
-
   String _ratingText(double? rating) {
     return rating == null ? '-' : rating.toStringAsFixed(1);
+  }
+
+  String _priceText(double price) {
+    return '${price.toStringAsFixed(0)} SDG';
   }
 
   @override
@@ -1012,8 +993,8 @@ class _PropertyCard extends StatelessWidget {
                       value: '${property.bathrooms ?? '-'}',
                     ),
                     _InfoLine(
-                      label: 'Owner',
-                      value: _buildShortName(property.ownerName),
+                      label: 'Price',
+                      value: _priceText(property.price),
                     ),
                     _InfoLine(
                       label: 'Rating',

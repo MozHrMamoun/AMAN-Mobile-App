@@ -14,9 +14,8 @@ class SaveWishResult {
 }
 
 class WishedPropertyController {
-  WishedPropertyController({
-    WishedPropertyRepository? repository,
-  }) : _repository = repository ?? WishedPropertyRepository();
+  WishedPropertyController({WishedPropertyRepository? repository})
+    : _repository = repository ?? WishedPropertyRepository();
 
   final WishedPropertyRepository _repository;
 
@@ -45,7 +44,10 @@ class WishedPropertyController {
       return SaveWishResult.error('Please login first.');
     }
 
-    if (propertyType == null || propertyType.isEmpty || city == null || city.isEmpty) {
+    if (propertyType == null ||
+        propertyType.isEmpty ||
+        city == null ||
+        city.isEmpty) {
       return SaveWishResult.error('Please select property type and city.');
     }
     if (!isBuy && (rentType == null || rentType.trim().isEmpty)) {
@@ -75,7 +77,9 @@ class WishedPropertyController {
         e.message.isEmpty ? 'Failed to save wished property.' : e.message,
       );
     } catch (_) {
-      return SaveWishResult.error('Unexpected error while saving wished property.');
+      return SaveWishResult.error(
+        'Unexpected error while saving wished property.',
+      );
     }
   }
 }

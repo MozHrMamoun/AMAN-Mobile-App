@@ -4,7 +4,7 @@ import '../../../core/supabase_client_provider.dart';
 
 class WishedPropertyRepository {
   WishedPropertyRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   final SupabaseClient _client;
 

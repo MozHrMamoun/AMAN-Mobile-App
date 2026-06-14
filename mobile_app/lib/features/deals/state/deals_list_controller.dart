@@ -10,9 +10,11 @@ class DealListItem {
     required this.ownerUserId,
     required this.propertyId,
     required this.isCompleted,
+    required this.isRejected,
     required this.otherUserName,
     required this.createdAt,
     this.doneAt,
+    this.rejectedAt,
     this.propertySummary,
   });
 
@@ -21,9 +23,11 @@ class DealListItem {
   final String ownerUserId;
   final int propertyId;
   final bool isCompleted;
+  final bool isRejected;
   final String otherUserName;
   final DateTime? createdAt;
   final DateTime? doneAt;
+  final DateTime? rejectedAt;
   final ChatPropertySummary? propertySummary;
 }
 
@@ -58,7 +62,7 @@ class DealsListResult {
 
 class DealsListController {
   DealsListController({DealRepository? repository})
-      : _repository = repository ?? DealRepository();
+    : _repository = repository ?? DealRepository();
 
   final DealRepository _repository;
 
@@ -70,7 +74,8 @@ class DealsListController {
       }
 
       final currentUserId = profile['user_id']?.toString();
-      final currentRole = (profile['role'] as String?)?.toLowerCase() ?? 'seeker';
+      final currentRole =
+          (profile['role'] as String?)?.toLowerCase() ?? 'seeker';
       if (currentUserId == null || currentUserId.isEmpty) {
         return DealsListResult.error('Invalid current user.');
       }
@@ -87,17 +92,21 @@ class DealsListController {
           otherUserIds.add(otherId);
         }
         final propertyIdRaw = row['property_id'];
-        final propertyId = propertyIdRaw is int
-            ? propertyIdRaw
-            : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+        final propertyId =
+            propertyIdRaw is int
+                ? propertyIdRaw
+                : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
         if (propertyId != null) {
           propertyIds.add(propertyId);
         }
       }
 
-      final namesById = await _repository.fetchUserNamesByIds(otherUserIds.toList());
-      final propertySummaries =
-          await _repository.fetchPropertySummariesByIds(propertyIds.toList());
+      final namesById = await _repository.fetchUserNamesByIds(
+        otherUserIds.toList(),
+      );
+      final propertySummaries = await _repository.fetchPropertySummariesByIds(
+        propertyIds.toList(),
+      );
 
       DateTime? parseDate(dynamic value) {
         final raw = value?.toString();
@@ -113,28 +122,32 @@ class DealsListController {
         return int.tryParse(value?.toString() ?? '') ?? 0;
       }
 
-      final items = rows.map((row) {
-        final dealId = parseInt(row['deal_id']);
-        final seekerId = row['seeker_id']?.toString() ?? '';
-        final ownerId = row['owner_id']?.toString() ?? '';
-        final propertyId = parseInt(row['property_id']);
-        final otherId = currentRole == 'owner' ? seekerId : ownerId;
-        final propertySummaryRow = propertySummaries[propertyId];
+      final items =
+          rows.map((row) {
+            final dealId = parseInt(row['deal_id']);
+            final seekerId = row['seeker_id']?.toString() ?? '';
+            final ownerId = row['owner_id']?.toString() ?? '';
+            final propertyId = parseInt(row['property_id']);
+            final otherId = currentRole == 'owner' ? seekerId : ownerId;
+            final propertySummaryRow = propertySummaries[propertyId];
 
-        return DealListItem(
-          dealId: dealId,
-          seekerUserId: seekerId,
-          ownerUserId: ownerId,
-          propertyId: propertyId,
-          isCompleted: row['done_at'] != null,
-          otherUserName: namesById[otherId] ?? 'User',
-          createdAt: parseDate(row['created_at']),
-          doneAt: parseDate(row['done_at']),
-          propertySummary: propertySummaryRow == null
-              ? null
-              : ChatPropertySummary.fromMap(propertySummaryRow),
-        );
-      }).toList();
+            return DealListItem(
+              dealId: dealId,
+              seekerUserId: seekerId,
+              ownerUserId: ownerId,
+              propertyId: propertyId,
+              isCompleted: row['done_at'] != null,
+              isRejected: row['rejected_at'] != null,
+              otherUserName: namesById[otherId] ?? 'User',
+              createdAt: parseDate(row['created_at']),
+              doneAt: parseDate(row['done_at']),
+              rejectedAt: parseDate(row['rejected_at']),
+              propertySummary:
+                  propertySummaryRow == null
+                      ? null
+                      : ChatPropertySummary.fromMap(propertySummaryRow),
+            );
+          }).toList();
 
       return DealsListResult.success(items: items, currentRole: currentRole);
     } on PostgrestException catch (e) {

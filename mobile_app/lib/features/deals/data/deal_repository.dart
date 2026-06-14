@@ -4,7 +4,7 @@ import '../../../core/supabase_client_provider.dart';
 
 class DealRepository {
   DealRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseClientProvider.client;
+    : _client = client ?? SupabaseClientProvider.client;
 
   final SupabaseClient _client;
 
@@ -14,11 +14,12 @@ class DealRepository {
     final userId = currentUserId;
     if (userId == null) return null;
 
-    final row = await _client
-        .from('user')
-        .select('user_id, role')
-        .eq('user_id', userId)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('user')
+            .select('user_id, role')
+            .eq('user_id', userId)
+            .maybeSingle();
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
   }
@@ -30,7 +31,9 @@ class DealRepository {
   }) async {
     final rows = await _client
         .from('deals')
-        .select('deal_id, seeker_id, owner_id, property_id, done_at')
+        .select(
+          'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at',
+        )
         .eq('seeker_id', seekerId)
         .eq('owner_id', ownerId)
         .eq('property_id', propertyId)
@@ -48,7 +51,9 @@ class DealRepository {
   }) async {
     final rows = await _client
         .from('deals')
-        .select('deal_id, seeker_id, owner_id, property_id, done_at')
+        .select(
+          'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at',
+        )
         .eq('seeker_id', seekerId)
         .eq('owner_id', ownerId)
         .order('created_at', ascending: false)
@@ -64,14 +69,18 @@ class DealRepository {
     required String ownerId,
     required int propertyId,
   }) async {
-    final row = await _client
-        .from('deals')
-        .select('deal_id, seeker_id, owner_id, property_id, done_at')
-        .eq('seeker_id', seekerId)
-        .eq('owner_id', ownerId)
-        .eq('property_id', propertyId)
-        .isFilter('done_at', null)
-        .maybeSingle();
+    final row =
+        await _client
+            .from('deals')
+            .select(
+              'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at',
+            )
+            .eq('seeker_id', seekerId)
+            .eq('owner_id', ownerId)
+            .eq('property_id', propertyId)
+            .isFilter('done_at', null)
+            .isFilter('rejected_at', null)
+            .maybeSingle();
 
     if (row == null) return null;
     return Map<String, dynamic>.from(row);
@@ -82,26 +91,41 @@ class DealRepository {
     required String ownerId,
     required int propertyId,
   }) async {
-    final row = await _client
-        .from('deals')
-        .insert({
-          'seeker_id': seekerId,
-          'owner_id': ownerId,
-          'property_id': propertyId,
-          'done_at': null,
-        })
-        .select('deal_id, seeker_id, owner_id, property_id, done_at')
-        .single();
+    final row =
+        await _client
+            .from('deals')
+            .insert({
+              'seeker_id': seekerId,
+              'owner_id': ownerId,
+              'property_id': propertyId,
+              'done_at': null,
+              'rejected_at': null,
+            })
+            .select(
+              'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at',
+            )
+            .single();
 
     return Map<String, dynamic>.from(row);
   }
 
-  Future<void> confirmDeal({
-    required int dealId,
-  }) async {
+  Future<void> confirmDeal({required int dealId}) async {
     await _client
         .from('deals')
-        .update({'done_at': DateTime.now().toIso8601String()})
+        .update({
+          'done_at': DateTime.now().toIso8601String(),
+          'rejected_at': null,
+        })
+        .eq('deal_id', dealId);
+  }
+
+  Future<void> rejectDeal({required int dealId}) async {
+    await _client
+        .from('deals')
+        .update({
+          'rejected_at': DateTime.now().toIso8601String(),
+          'done_at': null,
+        })
         .eq('deal_id', dealId);
   }
 
@@ -113,7 +137,9 @@ class DealRepository {
 
     final query = _client
         .from('deals')
-        .select('deal_id, seeker_id, owner_id, property_id, done_at, created_at')
+        .select(
+          'deal_id, seeker_id, owner_id, property_id, done_at, rejected_at, created_at',
+        )
         .eq(role == 'owner' ? 'owner_id' : 'seeker_id', userId)
         .order('created_at', ascending: false);
 
@@ -163,10 +189,12 @@ class DealRepository {
     for (final raw in (imageRows as List)) {
       final row = Map<String, dynamic>.from(raw as Map);
       final propertyIdRaw = row['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
-      if (propertyId == null || firstImageByPropertyId.containsKey(propertyId)) {
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      if (propertyId == null ||
+          firstImageByPropertyId.containsKey(propertyId)) {
         continue;
       }
       final imageUrl = row['image_url']?.toString();
@@ -179,9 +207,10 @@ class DealRepository {
     for (final raw in (propertyRows as List)) {
       final row = Map<String, dynamic>.from(raw as Map);
       final propertyIdRaw = row['property_id'];
-      final propertyId = propertyIdRaw is int
-          ? propertyIdRaw
-          : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
+      final propertyId =
+          propertyIdRaw is int
+              ? propertyIdRaw
+              : (propertyIdRaw is num ? propertyIdRaw.toInt() : null);
       if (propertyId == null) continue;
 
       result[propertyId] = {
